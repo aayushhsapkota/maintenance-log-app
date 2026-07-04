@@ -28,5 +28,7 @@
 	</array>
 	<key>XSAppIconAssets</key>
 	<string>Assets.xcassets/appicon.appiconset</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Fix It uses the camera to attach a photo of the issue you're reporting.</string>
 </dict>
 </plist>
