@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Fix_It.Services;
+using Microsoft.Extensions.Logging;
 
 namespace Fix_It
 {
@@ -14,6 +15,9 @@ namespace Fix_It
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                     fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
                 });
+
+            // Register DatabaseService as a singleton so the whole app shares one SQLite connection instance.
+            builder.Services.AddSingleton<DatabaseService>();
 
 #if DEBUG
     		builder.Logging.AddDebug();
