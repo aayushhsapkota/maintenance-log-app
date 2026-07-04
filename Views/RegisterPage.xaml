@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Fix_It.Views.RegisterPage"
+             Shell.NavBarIsVisible="False">
+
+    <!-- Reuses the same layout/styles as LoginPage.xaml (Login.png), with a Confirm Password
+         field added and its own link back to Login instead of a shared mode-toggle flag. -->
+    <ScrollView>
+        <VerticalStackLayout Padding="30,60,30,30" Spacing="20">
+
+            <Border BackgroundColor="{StaticResource Primary}"
+                    StrokeShape="RoundRectangle 20"
+                    WidthRequest="80"
+                    HeightRequest="80"
+                    HorizontalOptions="Center"
+                    Margin="0,0,0,10">
+                <Label Text="&#128295;"
+                       FontSize="36"
+                       TextColor="{StaticResource White}"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center" />
+            </Border>
+
+            <Label Text="Fix It"
+                   Style="{StaticResource Headline}" />
+
+            <Label Text="Create an account to report maintenance issues"
+                   TextColor="{StaticResource Gray500}"
+                   HorizontalOptions="Center"
+                   HorizontalTextAlignment="Center"
+                   Margin="0,-10,0,10" />
+
+            <!-- Username -->
+            <Label Text="Username" Style="{StaticResource FieldLabel}" />
+            <Border Style="{StaticResource FieldBorder}">
+                <Entry Text="{Binding Username}"
+                       Placeholder="e.g. alex.morgan"
+                       ReturnType="Next"
+                       VerticalOptions="Center" />
+            </Border>
+
+            <!-- Password -->
+            <Label Text="Password" Style="{StaticResource FieldLabel}" />
+            <Border Style="{StaticResource FieldBorder}">
+                <Entry Text="{Binding Password}"
+                       IsPassword="True"
+                       ReturnType="Next"
+                       VerticalOptions="Center" />
+            </Border>
+
+            <!-- Confirm Password -->
+            <Label Text="Confirm Password" Style="{StaticResource FieldLabel}" />
+            <Border Style="{StaticResource FieldBorder}">
+                <Entry Text="{Binding ConfirmPassword}"
+                       IsPassword="True"
+                       ReturnType="Done"
+                       VerticalOptions="Center" />
+            </Border>
+
+            <Label Text="{Binding ErrorMessage}"
+                   Style="{StaticResource ErrorLabel}"
+                   IsVisible="{Binding HasError}" />
+
+            <Button Text="Create Account"
+                    Style="{StaticResource PrimaryButton}"
+                    Command="{Binding RegisterCommand}"
+                    Margin="0,10,0,0" />
+
+            <!-- Navigates back to LoginPage (screen stack PopAsync) via a TapGestureRecognizer. -->
+            <Label Text="Already have an account? Sign in"
+                   Style="{StaticResource LinkLabel}"
+                   Margin="0,4,0,0">
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding GoToLoginCommand}" />
+                </Label.GestureRecognizers>
+            </Label>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

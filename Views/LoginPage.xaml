@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Fix_It.Views.LoginPage"
+             Shell.NavBarIsVisible="False">
+
+    <!-- ScrollView so the form doesn't get clipped on small screens or when the keyboard is open. -->
+    <ScrollView>
+        <VerticalStackLayout Padding="30,60,30,30" Spacing="20">
+
+            <!-- Wrench icon "logo". BackgroundColor/CornerRadius/TextColor are set directly on
+                 these two elements (Element-level styling) rather than through a Style resource,
+                 since this look is only ever used here. -->
+            <Border BackgroundColor="{StaticResource Primary}"
+                    StrokeShape="RoundRectangle 20"
+                    WidthRequest="80"
+                    HeightRequest="80"
+                    HorizontalOptions="Center"
+                    Margin="0,0,0,10">
+                <Label Text="&#128295;"
+                       FontSize="36"
+                       TextColor="{StaticResource White}"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center" />
+            </Border>
+
+            <!-- "Headline" is the Named style (defined once in Styles.xaml, applied via StaticResource);
+                 Label itself also picks up the Generic implicit Label style underneath it. -->
+            <Label Text="Fix It"
+                   Style="{StaticResource Headline}" />
+
+            <Label Text="Log in to manage maintenance issues"
+                   TextColor="{StaticResource Gray500}"
+                   HorizontalOptions="Center"
+                   HorizontalTextAlignment="Center"
+                   Margin="0,-10,0,10" />
+
+            <!-- Username -->
+            <Label Text="Username" Style="{StaticResource FieldLabel}" />
+            <Border Style="{StaticResource FieldBorder}">
+                <Entry Text="{Binding Username}"
+                       Placeholder="e.g. alex.morgan"
+                       ReturnType="Next"
+                       VerticalOptions="Center" />
+            </Border>
+
+            <!-- Password -->
+            <Label Text="Password" Style="{StaticResource FieldLabel}" />
+            <Border Style="{StaticResource FieldBorder}">
+                <Entry Text="{Binding Password}"
+                       IsPassword="True"
+                       ReturnType="Done"
+                       VerticalOptions="Center" />
+            </Border>
+
+            <Label Text="{Binding ErrorMessage}"
+                   Style="{StaticResource ErrorLabel}"
+                   IsVisible="{Binding HasError}" />
+
+            <Button Text="Sign In"
+                    Style="{StaticResource PrimaryButton}"
+                    Command="{Binding LoginCommand}"
+                    Margin="0,10,0,0" />
+
+            <!-- Navigates to RegisterPage (screen stack PushAsync).
+                 Uses a TapGestureRecognizer on a Label since this is a text link, not a primary action. -->
+            <Label Text="Don't have an account? Create one"
+                   Style="{StaticResource LinkLabel}"
+                   Margin="0,4,0,0">
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding GoToRegisterCommand}" />
+                </Label.GestureRecognizers>
+            </Label>
+
+            <Label Text="Forgot Password?"
+                   Style="{StaticResource LinkLabel}"
+                   Margin="0,20,0,0">
+                <Label.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnForgotPasswordTapped" />
+                </Label.GestureRecognizers>
+            </Label>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Fix_It.Views.ReportIssuePage"
+             Title="Report Issue">
+
+    <!-- Placeholder for Step 4 — the full Issue Report Form (camera, file storage, etc.)
+         will replace this content. It exists now so Step 3's Login -> navigation works end to end. -->
+    <VerticalStackLayout VerticalOptions="Center" Padding="30" Spacing="12">
+        <Label Text="Report Issue"
+               Style="{StaticResource Headline}" />
+        <Label Text="The issue report form will be built in Step 4."
+               HorizontalOptions="Center"
+               HorizontalTextAlignment="Center" />
+    </VerticalStackLayout>
+
+</ContentPage>
