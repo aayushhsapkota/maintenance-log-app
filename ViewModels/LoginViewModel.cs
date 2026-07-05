@@ -75,7 +75,7 @@ namespace Fix_It.ViewModels
                     return;
                 }
 
-                await _navigation.PushAsync(new ReportIssuePage(user));
+                await _navigation.PushAsync(new IssueListPage(user));
             }
             finally
             {

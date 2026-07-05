@@ -87,5 +87,14 @@ namespace Fix_It.Services
             await EnsureInitializedAsync();
             await _connection.InsertAsync(report);
         }
+
+        public async Task<List<IssueReport>> GetIssueReportsByUserAsync(int userId)
+        {
+            await EnsureInitializedAsync();
+            return await _connection.Table<IssueReport>()
+                .Where(r => r.CreatedByUserId == userId)
+                .OrderByDescending(r => r.CreatedAtUtc)
+                .ToListAsync();
+        }
     }
 }

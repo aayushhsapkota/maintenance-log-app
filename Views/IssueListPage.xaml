@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:Fix_It.Models"
+             x:Class="Fix_It.Views.IssueListPage"
+             Title="My Reports"
+             BackgroundColor="{StaticResource PageBackground}">
+
+    <Grid Padding="20" RowDefinitions="Auto,*" RowSpacing="16">
+
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+            <VerticalStackLayout Grid.Column="0" Spacing="2">
+                <Label Text="My Reports"
+                       FontFamily="OpenSansSemibold"
+                       FontSize="26"
+                       HorizontalOptions="Start" />
+                <Label Text="Issues you've submitted"
+                       TextColor="{StaticResource Gray500}" />
+            </VerticalStackLayout>
+
+            <Button Grid.Column="1"
+                    Text="+ Report"
+                    Style="{StaticResource PrimaryButton}"
+                    Command="{Binding GoToReportCommand}"
+                    HeightRequest="44"
+                    WidthRequest="110"
+                    FontSize="14"
+                    VerticalOptions="Center" />
+        </Grid>
+
+        <CollectionView Grid.Row="1" ItemsSource="{Binding Reports}">
+            <CollectionView.EmptyView>
+                <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="8">
+                    <Label Text="You haven't reported any issues yet."
+                           TextColor="{StaticResource Gray500}"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:IssueReport">
+                    <Border BackgroundColor="{StaticResource CardBackground}"
+                            Stroke="{StaticResource BorderGray}"
+                            StrokeShape="RoundRectangle 12"
+                            StrokeThickness="1"
+                            Padding="16"
+                            Margin="0,0,0,12">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="{Binding Title}"
+                                   FontFamily="OpenSansSemibold"
+                                   FontSize="16" />
+                            <Label Text="{Binding Location}"
+                                   TextColor="{StaticResource Gray500}"
+                                   FontSize="13" />
+                            <Label Text="{Binding Priority, StringFormat='Priority: {0}'}"
+                                   TextColor="{StaticResource Primary}"
+                                   FontSize="13" />
+                            <Label Text="{Binding CreatedAtUtc, StringFormat='Submitted {0:MMM d, yyyy h:mm tt}'}"
+                                   TextColor="{StaticResource Gray400}"
+                                   FontSize="12" />
+                        </VerticalStackLayout>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
+
+</ContentPage>
