@@ -61,6 +61,32 @@
                                 VerticalOptions="Center" />
                     </Border>
 
+                    <Label Text="Upload Image (optional)" Style="{StaticResource FieldLabel}" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                        <Button Grid.Column="0"
+                                Text="Upload"
+                                Style="{StaticResource SecondaryButton}"
+                                Command="{Binding PickPhotoCommand}" />
+
+                        <!-- IsEnabled bound to IsCameraSupported since stock MAUI doesn't
+                             support camera capture on Windows — disabled instead of throwing. -->
+                        <Button Grid.Column="1"
+                                Text="Camera"
+                                Style="{StaticResource SecondaryButton}"
+                                Command="{Binding TakePhotoCommand}"
+                                IsEnabled="{Binding IsCameraSupported}" />
+                    </Grid>
+
+                    <Image Source="{Binding PhotoPath}"
+                           IsVisible="{Binding HasPhoto}"
+                           HeightRequest="160"
+                           Aspect="AspectFit" />
+
+                    <Label Text="{Binding PhotoStatusText}"
+                           TextColor="{StaticResource Gray500}"
+                           FontSize="12"
+                           IsVisible="{Binding HasPhoto}" />
+
                     <Label Text="{Binding ErrorMessage}"
                            Style="{StaticResource ErrorLabel}"
                            IsVisible="{Binding HasError}" />
