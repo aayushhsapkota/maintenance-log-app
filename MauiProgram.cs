@@ -19,6 +19,9 @@ namespace Fix_It
             // Register DatabaseService as a singleton so the whole app shares one SQLite connection instance.
             builder.Services.AddSingleton<DatabaseService>();
 
+            // Shared "who's signed in" holder — singleton so LoginPage and IssueListPage see the same instance.
+            builder.Services.AddSingleton<AuthSession>();
+
 #if DEBUG
     		builder.Logging.AddDebug();
 #endif

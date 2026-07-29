@@ -5,10 +5,12 @@ using Fix_It.Views;
 namespace Fix_It.ViewModels
 {
     // Backs LoginPage only. Registration lives in RegisterViewModel/RegisterPage,
-    // reached and returned from via the screen stack (PushAsync/PopAsync).
+    // reached and returned from via the screen stack (PushAsync/PopAsync) *inside*
+    // the modal layer that LoginPage was presented in (see IssueListPage.OnAppearing).
     public class LoginViewModel : BaseViewModel
     {
         readonly DatabaseService _databaseService;
+        readonly AuthSession _authSession;
         readonly INavigation _navigation;
 
         string _username = string.Empty;
@@ -16,9 +18,10 @@ namespace Fix_It.ViewModels
         string _errorMessage = string.Empty;
         bool _isBusy;
 
-        public LoginViewModel(DatabaseService databaseService, INavigation navigation)
+        public LoginViewModel(DatabaseService databaseService, AuthSession authSession, INavigation navigation)
         {
             _databaseService = databaseService;
+            _authSession = authSession;
             _navigation = navigation;
 
             LoginCommand = new Command(async () => await LoginAsync());
@@ -75,7 +78,12 @@ namespace Fix_It.ViewModels
                     return;
                 }
 
-                await _navigation.PushAsync(new IssueListPage(user));
+                // Hand the signed-in user off to IssueListPage via the shared session, then
+                // close the ENTIRE modal layer (LoginPage + RegisterPage if it's on top of it)
+                // in one call — PopModalAsync pops the whole NavigationPage that was pushed
+                // modally, not just the current page within it.
+                _authSession.CurrentUser = user;
+                await _navigation.PopModalAsync();
             }
             finally
             {
