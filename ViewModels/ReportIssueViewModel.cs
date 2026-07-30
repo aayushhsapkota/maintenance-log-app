@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using Fix_It.Models;
 using Fix_It.Services;
+using Microsoft.Maui.Graphics.Platform;
 
 namespace Fix_It.ViewModels
 {
@@ -152,52 +153,110 @@ namespace Fix_It.ViewModels
         {
             ErrorMessage = string.Empty;
 
-            // Declaring the permission in the platform manifest (done back in Step 1) only gets
-            // us so far — this is the runtime "request via popup" half of the requirement.
-            var status = await Permissions.RequestAsync<Permissions.Camera>();
-            if (status != PermissionStatus.Granted)
+            try
             {
-                ErrorMessage = "Camera permission is required to take a photo.";
-                return;
+                // Declaring the permission in the platform manifest (done back in Step 1) only
+                // gets us so far — this is the runtime "request via popup" half of the requirement.
+                var status = await Permissions.RequestAsync<Permissions.Camera>();
+                if (status != PermissionStatus.Granted)
+                {
+                    ErrorMessage = "Camera permission is required to take a photo.";
+                    return;
+                }
+
+                var photo = await MediaPicker.Default.CapturePhotoAsync();
+                if (photo is null)
+                    return; // user cancelled
+
+                await LoadPhotoAsync(photo);
+                PhotoStatusText = $"Photo captured ({_deviceInfoHelper.GetCaptureSourceLabel()})";
             }
-
-            var photo = await MediaPicker.Default.CapturePhotoAsync();
-            if (photo is null)
-                return; // user cancelled
-
-            await LoadPhotoAsync(photo);
-            PhotoStatusText = $"Photo captured ({_deviceInfoHelper.GetCaptureSourceLabel()})";
+            catch (Exception ex)
+            {
+                // Commands wrapping "async () => await ..." run fire-and-forget — an exception
+                // that escapes here (e.g. no camera app on the device/emulator, or the user
+                // denies the OS-level prompt) would otherwise be unhandled and crash the app
+                // outright instead of just failing this one action.
+                Console.WriteLine($"TakePhotoAsync failed: {ex.Message}");
+                ErrorMessage = "Couldn't open the camera. Please try again.";
+            }
         }
 
         async Task PickPhotoAsync()
         {
             ErrorMessage = string.Empty;
 
-            // PickPhotoAsync is obsolete in favor of PickPhotosAsync (supports multi-select);
-            // we only want one image for this form, so just take the first result.
-            var photos = await MediaPicker.Default.PickPhotosAsync();
-            var photo = photos.FirstOrDefault();
-            if (photo is null)
-                return; // user cancelled
+            try
+            {
+                // PickPhotoAsync is obsolete in favor of PickPhotosAsync (supports multi-select);
+                // we only want one image for this form, so just take the first result.
+                var photos = await MediaPicker.Default.PickPhotosAsync();
+                var photo = photos.FirstOrDefault();
+                if (photo is null)
+                    return; // user cancelled
 
-            await LoadPhotoAsync(photo);
-            PhotoStatusText = "Photo selected";
+                await LoadPhotoAsync(photo);
+                PhotoStatusText = "Photo selected";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"PickPhotoAsync failed: {ex.Message}");
+                ErrorMessage = "Couldn't open the photo picker. Please try again.";
+            }
         }
 
-        // Reads whatever MediaPicker handed back straight into memory — no local file write.
-        // The bytes stay in _photoBytes until Submit uploads them to Firebase Storage.
+        // Reads whatever MediaPicker handed back, downscales it, and keeps only the smaller
+        // version in memory — no local file write. A full camera-resolution photo can be
+        // several MB as raw bytes plus far more once decoded to a bitmap for the preview, which
+        // was OOM-crashing the app on memory-constrained devices/emulators; capping the longest
+        // edge keeps both comfortably small while still being plenty clear for a report photo.
+
+        //This downsizing code is done by AI
+        const int MaxPhotoDimension = 1600;
+
         async Task LoadPhotoAsync(FileResult photo)
         {
-            using var stream = await photo.OpenReadAsync();
-            using var buffer = new MemoryStream();
-            await stream.CopyToAsync(buffer);
-            _photoBytes = buffer.ToArray();
+            using var sourceStream = await photo.OpenReadAsync();
+            using var originalImage = PlatformImage.FromStream(sourceStream);
+
+            // TryDownscale returns null if the photo's already small enough, or if the resize
+            // itself failed — either way we fall back to encoding the untouched original.
+            _photoBytes = TryDownscale(originalImage) ?? EncodeToJpegBytes(originalImage);
 
             // ImageSource.FromStream takes a factory rather than a stream directly because the
             // Image control may need to re-read it; a fresh MemoryStream per call handles that.
             var bytes = _photoBytes;
             PhotoPreview = ImageSource.FromStream(() => new MemoryStream(bytes));
             OnPropertyChanged(nameof(HasPhoto));
+        }
+
+        static byte[]? TryDownscale(Microsoft.Maui.Graphics.IImage originalImage)
+        {
+            if (originalImage.Width <= MaxPhotoDimension && originalImage.Height <= MaxPhotoDimension)
+                return null;
+
+            try
+            {
+                var scale = MaxPhotoDimension / (float)Math.Max(originalImage.Width, originalImage.Height);
+                using var resized = originalImage.Resize(originalImage.Width * scale, originalImage.Height * scale, ResizeMode.Fit);
+                return EncodeToJpegBytes(resized);
+            }
+            catch (Exception ex)
+            {
+                // PlatformImage's Android implementation has shown itself fragile around
+                // resize/dispose timing ("object already disposed" JNI errors) — if it throws,
+                // fall back to the original full-size photo rather than failing the whole
+                // attach-a-photo action over a downscale that didn't cooperate.
+                Console.WriteLine($"Photo downscale failed, using original size: {ex.Message}");
+                return null;
+            }
+        }
+
+        static byte[] EncodeToJpegBytes(Microsoft.Maui.Graphics.IImage image)
+        {
+            using var output = new MemoryStream();
+            image.Save(output, ImageFormat.Jpeg, quality: 0.8f);
+            return output.ToArray();
         }
     }
 }
