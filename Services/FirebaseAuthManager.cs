@@ -49,6 +49,19 @@ namespace Fix_It.Services
             }
         }
 
+        // Firestore/Storage security rules require an authenticated request — this hands
+        // FirebaseDataManager a valid ID token for the "Authorization: Bearer ..." header.
+        // GetIdTokenAsync() (from the underlying Firebase.Auth.User) refreshes it via the
+        // stored refresh token if the cached one has expired, so callers don't need to care.
+        public async static Task<string?> GetIdTokenAsync()
+        {
+            var user = _authClient.User;
+            if (user is null)
+                return null;
+
+            return await user.GetIdTokenAsync();
+        }
+
         // Try to log in with Firebase
         public async static Task<bool> Login(string email, string password)
         {

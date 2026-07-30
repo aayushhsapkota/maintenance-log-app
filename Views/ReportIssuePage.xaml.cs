@@ -1,7 +1,5 @@
 using Fix_It.Models;
-using Fix_It.Services;
 using Fix_It.ViewModels;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Fix_It.Views
 {
@@ -11,8 +9,7 @@ namespace Fix_It.Views
         {
             InitializeComponent();
 
-            var databaseService = IPlatformApplication.Current!.Services.GetRequiredService<DatabaseService>();
-            BindingContext = new ReportIssueViewModel(databaseService, this, currentUser.FirebaseUid);
+            BindingContext = new ReportIssueViewModel(this, currentUser.FirebaseUid);
         }
     }
 }

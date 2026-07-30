@@ -77,7 +77,7 @@
                                 IsEnabled="{Binding IsCameraSupported}" />
                     </Grid>
 
-                    <Image Source="{Binding PhotoPath}"
+                    <Image Source="{Binding PhotoPreview}"
                            IsVisible="{Binding HasPhoto}"
                            HeightRequest="160"
                            Aspect="AspectFit" />

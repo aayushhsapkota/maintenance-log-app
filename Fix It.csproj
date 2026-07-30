@@ -61,9 +61,6 @@
 		<PackageReference Include="FirebaseAuthentication.net" Version="4.1.0" />
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
-		<PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
-		<!-- Override sqlite-net-pcl's transitive dependency on SQLitePCLRaw 2.1.2 (NU1903: known high-severity CVE) with the patched release 2.1.11 -->
-		<PackageReference Include="SQLitePCLRaw.bundle_green" Version="2.1.11" />
 	</ItemGroup>
 
 </Project>

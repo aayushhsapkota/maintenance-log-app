@@ -8,25 +8,25 @@ namespace Fix_It.ViewModels
     // Backs ReportIssuePage.
     public class ReportIssueViewModel : BaseViewModel
     {
-        readonly DatabaseService _databaseService;
         readonly Page _page;
         readonly string _createdByFirebaseUid;
         readonly DeviceInfoHelper _deviceInfoHelper = new();
+
+        byte[]? _photoBytes;
 
         string _title = string.Empty;
         string _location = string.Empty;
         string _description = string.Empty;
         string? _selectedPriority;
-        string? _photoPath;
+        ImageSource? _photoPreview;
         string _photoStatusText = string.Empty;
         string _errorMessage = string.Empty;
         bool _isBusy;
 
         // Takes the Page itself (rather than just INavigation) since submitting also needs
         // to show a confirmation alert, which lives on Page alongside Navigation.
-        public ReportIssueViewModel(DatabaseService databaseService, Page page, string createdByFirebaseUid)
+        public ReportIssueViewModel(Page page, string createdByFirebaseUid)
         {
-            _databaseService = databaseService;
             _page = page;
             _createdByFirebaseUid = createdByFirebaseUid;
 
@@ -78,17 +78,15 @@ namespace Fix_It.ViewModels
 
         public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
 
-        public string? PhotoPath
+        // Built from the in-memory photo bytes for the preview Image — nothing is written to
+        // local disk anymore, the photo only ever leaves memory via the upload to Storage.
+        public ImageSource? PhotoPreview
         {
-            get => _photoPath;
-            private set
-            {
-                if (SetProperty(ref _photoPath, value))
-                    OnPropertyChanged(nameof(HasPhoto));
-            }
+            get => _photoPreview;
+            private set => SetProperty(ref _photoPreview, value);
         }
 
-        public bool HasPhoto => !string.IsNullOrEmpty(PhotoPath);
+        public bool HasPhoto => _photoBytes is not null;
 
         public string PhotoStatusText
         {
@@ -127,12 +125,18 @@ namespace Fix_It.ViewModels
                     Location = Location,
                     Description = Description,
                     Priority = SelectedPriority,
-                    PhotoPath = PhotoPath,
                     CreatedByFirebaseUid = _createdByFirebaseUid,
                     CreatedAtUtc = DateTime.UtcNow
                 };
 
-                await _databaseService.SaveIssueReportAsync(report);
+                // Uploads the photo to Firebase Storage (if any) and writes the report to
+                // Firestore in one call — see FirebaseDataManager.SaveIssueReportAsync.
+                var success = await FirebaseDataManager.SaveIssueReportAsync(report, _photoBytes);
+                if (!success)
+                {
+                    ErrorMessage = "Failed to submit report. Please check your connection and try again.";
+                    return;
+                }
 
                 await _page.DisplayAlertAsync("Report Submitted", "Your maintenance issue has been reported.", "OK");
 
@@ -161,7 +165,7 @@ namespace Fix_It.ViewModels
             if (photo is null)
                 return; // user cancelled
 
-            PhotoPath = await SavePhotoLocallyAsync(photo);
+            await LoadPhotoAsync(photo);
             PhotoStatusText = $"Photo captured ({_deviceInfoHelper.GetCaptureSourceLabel()})";
         }
 
@@ -176,25 +180,24 @@ namespace Fix_It.ViewModels
             if (photo is null)
                 return; // user cancelled
 
-            PhotoPath = await SavePhotoLocallyAsync(photo);
+            await LoadPhotoAsync(photo);
             PhotoStatusText = "Photo selected";
         }
 
-        // Copies whatever MediaPicker handed back (a temp file/stream) into our own app-data
-        // folder, since the source location isn't guaranteed to still exist later — this is
-        // the "file storage" half of the requirement, alongside the camera capture itself.
-        static async Task<string> SavePhotoLocallyAsync(FileResult photo)
+        // Reads whatever MediaPicker handed back straight into memory — no local file write.
+        // The bytes stay in _photoBytes until Submit uploads them to Firebase Storage.
+        async Task LoadPhotoAsync(FileResult photo)
         {
-            var photosDirectory = Path.Combine(FileSystem.AppDataDirectory, "Photos");
-            Directory.CreateDirectory(photosDirectory);
+            using var stream = await photo.OpenReadAsync();
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer);
+            _photoBytes = buffer.ToArray();
 
-            var destinationPath = Path.Combine(photosDirectory, $"{Guid.NewGuid()}{Path.GetExtension(photo.FileName)}");
-
-            using var sourceStream = await photo.OpenReadAsync();
-            using var destinationStream = File.Create(destinationPath);
-            await sourceStream.CopyToAsync(destinationStream);
-
-            return destinationPath;
+            // ImageSource.FromStream takes a factory rather than a stream directly because the
+            // Image control may need to re-read it; a fresh MemoryStream per call handles that.
+            var bytes = _photoBytes;
+            PhotoPreview = ImageSource.FromStream(() => new MemoryStream(bytes));
+            OnPropertyChanged(nameof(HasPhoto));
         }
     }
 }

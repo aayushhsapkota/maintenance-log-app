@@ -12,15 +12,13 @@ namespace Fix_It.ViewModels
     // of scope.
     public class IssueListViewModel : BaseViewModel
     {
-        readonly DatabaseService _databaseService;
         readonly Page _page;
         readonly AuthSession _authSession;
 
         bool _isLoading;
 
-        public IssueListViewModel(DatabaseService databaseService, Page page, AuthSession authSession)
+        public IssueListViewModel(Page page, AuthSession authSession)
         {
-            _databaseService = databaseService;
             _page = page;
             _authSession = authSession;
 
@@ -58,7 +56,7 @@ namespace Fix_It.ViewModels
             IsLoading = true;
             try
             {
-                var reports = await _databaseService.GetIssueReportsByUserAsync(_authSession.CurrentUser.FirebaseUid);
+                var reports = await FirebaseDataManager.GetIssueReportsByUserAsync(_authSession.CurrentUser.FirebaseUid);
 
                 Reports.Clear();
                 foreach (var report in reports)

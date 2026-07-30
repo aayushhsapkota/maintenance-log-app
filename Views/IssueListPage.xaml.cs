@@ -13,9 +13,8 @@ namespace Fix_It.Views
         {
             InitializeComponent();
 
-            var databaseService = IPlatformApplication.Current!.Services.GetRequiredService<DatabaseService>();
             var authSession = IPlatformApplication.Current!.Services.GetRequiredService<AuthSession>();
-            _viewModel = new IssueListViewModel(databaseService, this, authSession);
+            _viewModel = new IssueListViewModel(this, authSession);
             BindingContext = _viewModel;
         }
 
