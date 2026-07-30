@@ -1,6 +1,4 @@
-using Fix_It.Services;
 using Fix_It.ViewModels;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Fix_It.Views
 {
@@ -10,8 +8,7 @@ namespace Fix_It.Views
         {
             InitializeComponent();
 
-            var databaseService = IPlatformApplication.Current!.Services.GetRequiredService<DatabaseService>();
-            BindingContext = new RegisterViewModel(databaseService, Navigation);
+            BindingContext = new RegisterViewModel(Navigation);
         }
     }
 }

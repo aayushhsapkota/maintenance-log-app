@@ -33,7 +33,7 @@ namespace Fix_It.Services
                 if (_isInitialized)
                     return;
 
-                await _connection.CreateTableAsync<User>();
+                // No local Users table — accounts live in Firebase Authentication now.
                 await _connection.CreateTableAsync<IssueReport>();
                 _isInitialized = true;
             }
@@ -43,56 +43,17 @@ namespace Fix_It.Services
             }
         }
 
-        public async Task<User?> GetUserByUsernameAsync(string username)
-        {
-            await EnsureInitializedAsync();
-            return await _connection.Table<User>()
-                .Where(u => u.Username == username)
-                .FirstOrDefaultAsync();
-        }
-
-        public async Task<bool> RegisterUserAsync(string username, string password)
-        {
-            await EnsureInitializedAsync();
-
-            var existing = await GetUserByUsernameAsync(username);
-            if (existing is not null)
-                return false;
-
-            var (hash, salt) = PasswordHasher.HashPassword(password);
-            var user = new User
-            {
-                Username = username,
-                PasswordHash = hash,
-                PasswordSalt = salt
-            };
-
-            await _connection.InsertAsync(user);
-            return true;
-        }
-
-        public async Task<User?> ValidateUserAsync(string username, string password)
-        {
-            var user = await GetUserByUsernameAsync(username);
-            if (user is null)
-                return null;
-
-            return PasswordHasher.VerifyPassword(password, user.PasswordHash, user.PasswordSalt)
-                ? user
-                : null;
-        }
-
         public async Task SaveIssueReportAsync(IssueReport report)
         {
             await EnsureInitializedAsync();
             await _connection.InsertAsync(report);
         }
 
-        public async Task<List<IssueReport>> GetIssueReportsByUserAsync(int userId)
+        public async Task<List<IssueReport>> GetIssueReportsByUserAsync(string firebaseUid)
         {
             await EnsureInitializedAsync();
             return await _connection.Table<IssueReport>()
-                .Where(r => r.CreatedByUserId == userId)
+                .Where(r => r.CreatedByFirebaseUid == firebaseUid)
                 .OrderByDescending(r => r.CreatedAtUtc)
                 .ToListAsync();
         }

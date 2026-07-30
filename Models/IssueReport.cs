@@ -21,7 +21,7 @@ namespace Fix_It.Models
 
         public string? PhotoPath { get; set; }
 
-        public int CreatedByUserId { get; set; }
+        public string CreatedByFirebaseUid { get; set; } = string.Empty;
 
         public DateTime CreatedAtUtc { get; set; }
     }

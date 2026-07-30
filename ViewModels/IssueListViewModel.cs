@@ -58,7 +58,7 @@ namespace Fix_It.ViewModels
             IsLoading = true;
             try
             {
-                var reports = await _databaseService.GetIssueReportsByUserAsync(_authSession.CurrentUser.Id);
+                var reports = await _databaseService.GetIssueReportsByUserAsync(_authSession.CurrentUser.FirebaseUid);
 
                 Reports.Clear();
                 foreach (var report in reports)

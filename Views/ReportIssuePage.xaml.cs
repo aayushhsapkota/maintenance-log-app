@@ -12,7 +12,7 @@ namespace Fix_It.Views
             InitializeComponent();
 
             var databaseService = IPlatformApplication.Current!.Services.GetRequiredService<DatabaseService>();
-            BindingContext = new ReportIssueViewModel(databaseService, this, currentUser.Id);
+            BindingContext = new ReportIssueViewModel(databaseService, this, currentUser.FirebaseUid);
         }
     }
 }

@@ -9,7 +9,6 @@ namespace Fix_It.ViewModels
     // the modal layer that LoginPage was presented in (see IssueListPage.OnAppearing).
     public class LoginViewModel : BaseViewModel
     {
-        readonly DatabaseService _databaseService;
         readonly AuthSession _authSession;
         readonly INavigation _navigation;
 
@@ -18,9 +17,8 @@ namespace Fix_It.ViewModels
         string _errorMessage = string.Empty;
         bool _isBusy;
 
-        public LoginViewModel(DatabaseService databaseService, AuthSession authSession, INavigation navigation)
+        public LoginViewModel(AuthSession authSession, INavigation navigation)
         {
-            _databaseService = databaseService;
             _authSession = authSession;
             _navigation = navigation;
 
@@ -64,17 +62,17 @@ namespace Fix_It.ViewModels
 
             if (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(Password))
             {
-                ErrorMessage = "Username and password are required.";
+                ErrorMessage = "Email and password are required.";
                 return;
             }
 
             _isBusy = true;
             try
             {
-                var user = await _databaseService.ValidateUserAsync(Username, Password);
-                if (user is null)
+                var success = await FirebaseAuthManager.Login(Username, Password);
+                if (!success)
                 {
-                    ErrorMessage = "Invalid username or password.";
+                    ErrorMessage = "Invalid email or password.";
                     return;
                 }
 
@@ -82,7 +80,7 @@ namespace Fix_It.ViewModels
                 // close the ENTIRE modal layer (LoginPage + RegisterPage if it's on top of it)
                 // in one call — PopModalAsync pops the whole NavigationPage that was pushed
                 // modally, not just the current page within it.
-                _authSession.CurrentUser = user;
+                _authSession.CurrentUser = FirebaseAuthManager.CurrentUser;
                 await _navigation.PopModalAsync();
             }
             finally

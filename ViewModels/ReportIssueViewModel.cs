@@ -10,7 +10,7 @@ namespace Fix_It.ViewModels
     {
         readonly DatabaseService _databaseService;
         readonly Page _page;
-        readonly int _createdByUserId;
+        readonly string _createdByFirebaseUid;
         readonly DeviceInfoHelper _deviceInfoHelper = new();
 
         string _title = string.Empty;
@@ -24,11 +24,11 @@ namespace Fix_It.ViewModels
 
         // Takes the Page itself (rather than just INavigation) since submitting also needs
         // to show a confirmation alert, which lives on Page alongside Navigation.
-        public ReportIssueViewModel(DatabaseService databaseService, Page page, int createdByUserId)
+        public ReportIssueViewModel(DatabaseService databaseService, Page page, string createdByFirebaseUid)
         {
             _databaseService = databaseService;
             _page = page;
-            _createdByUserId = createdByUserId;
+            _createdByFirebaseUid = createdByFirebaseUid;
 
             SubmitCommand = new Command(async () => await SubmitAsync());
             TakePhotoCommand = new Command(async () => await TakePhotoAsync());
@@ -128,7 +128,7 @@ namespace Fix_It.ViewModels
                     Description = Description,
                     Priority = SelectedPriority,
                     PhotoPath = PhotoPath,
-                    CreatedByUserId = _createdByUserId,
+                    CreatedByFirebaseUid = _createdByFirebaseUid,
                     CreatedAtUtc = DateTime.UtcNow
                 };
 

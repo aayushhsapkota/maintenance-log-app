@@ -35,11 +35,13 @@
                    HorizontalTextAlignment="Center"
                    Margin="0,-10,0,10" />
 
-            <!-- Username -->
-            <Label Text="Username" Style="{StaticResource FieldLabel}" />
+            <!-- Email — Firebase's email/password provider requires a real email, so this
+                 field is labeled "Email" rather than the mockup's "Username". -->
+            <Label Text="Email" Style="{StaticResource FieldLabel}" />
             <Border Style="{StaticResource FieldBorder}">
                 <Entry Text="{Binding Username}"
-                       Placeholder="e.g. alex.morgan"
+                       Placeholder="e.g. alex.morgan@company.com"
+                       Keyboard="Email"
                        ReturnType="Next"
                        VerticalOptions="Center" />
             </Border>

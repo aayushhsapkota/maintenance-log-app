@@ -1,13 +1,15 @@
 using System.Windows.Input;
+using Fix_It.Models;
 using Fix_It.Services;
 
 namespace Fix_It.ViewModels
 {
     // Backs RegisterPage only. Reached from LoginPage via PushAsync; on success or via the
     // "Already have an account?" link it pops back to LoginPage rather than swapping a mode flag.
+    // Doesn't sign the user in itself, so it has no need for AuthSession — just Firebase account
+    // creation, then back to Login to sign in with the new account.
     public class RegisterViewModel : BaseViewModel
     {
-        readonly DatabaseService _databaseService;
         readonly INavigation _navigation;
 
         string _username = string.Empty;
@@ -16,9 +18,8 @@ namespace Fix_It.ViewModels
         string _errorMessage = string.Empty;
         bool _isBusy;
 
-        public RegisterViewModel(DatabaseService databaseService, INavigation navigation)
+        public RegisterViewModel(INavigation navigation)
         {
-            _databaseService = databaseService;
             _navigation = navigation;
 
             RegisterCommand = new Command(async () => await RegisterAsync());
@@ -67,7 +68,7 @@ namespace Fix_It.ViewModels
 
             if (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(Password))
             {
-                ErrorMessage = "Username and password are required.";
+                ErrorMessage = "Email and password are required.";
                 return;
             }
 
@@ -77,13 +78,22 @@ namespace Fix_It.ViewModels
                 return;
             }
 
+            // Firebase itself enforces a 6-character minimum — checking here first avoids a
+            // round trip for the most common validation failure.
+            if (Password.Length < 6)
+            {
+                ErrorMessage = "Password must be at least 6 characters.";
+                return;
+            }
+
             _isBusy = true;
             try
             {
-                var created = await _databaseService.RegisterUserAsync(Username, Password);
+                var user = new User { Username = Username };
+                var created = await FirebaseAuthManager.RegisterAccount(user, Password);
                 if (!created)
                 {
-                    ErrorMessage = "That username is already taken.";
+                    ErrorMessage = "Registration failed. The email may already be in use, or is invalid.";
                     return;
                 }
 

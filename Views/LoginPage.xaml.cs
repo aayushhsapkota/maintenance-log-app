@@ -10,14 +10,13 @@ namespace Fix_It.Views
         {
             InitializeComponent();
 
-            // DatabaseService and AuthSession are registered as singletons in MauiProgram, so
-            // every page that resolves them here shares the same instances.
-            var databaseService = IPlatformApplication.Current!.Services.GetRequiredService<DatabaseService>();
+            // AuthSession is registered as a singleton in MauiProgram, so every page that
+            // resolves it here shares the same instance.
             var authSession = IPlatformApplication.Current!.Services.GetRequiredService<AuthSession>();
 
             // Model instance created here and set as the page's BindingContext — the ViewModel
             // then drives everything the XAML above binds to.
-            BindingContext = new LoginViewModel(databaseService, authSession, Navigation);
+            BindingContext = new LoginViewModel(authSession, Navigation);
         }
 
         async void OnForgotPasswordTapped(object? sender, EventArgs e)
