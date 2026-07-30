@@ -55,6 +55,13 @@
                        VerticalOptions="Center" />
             </Border>
 
+            <!-- "Remember my details" — saves/clears the email+password via Preferences,
+                 same as the course lab. -->
+            <HorizontalStackLayout Spacing="8">
+                <CheckBox IsChecked="{Binding RememberMe}" VerticalOptions="Center" />
+                <Label Text="Remember my details" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+
             <Label Text="{Binding ErrorMessage}"
                    Style="{StaticResource ErrorLabel}"
                    IsVisible="{Binding HasError}" />

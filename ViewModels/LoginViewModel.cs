@@ -9,12 +9,17 @@ namespace Fix_It.ViewModels
     // the modal layer that LoginPage was presented in (see IssueListPage.OnAppearing).
     public class LoginViewModel : BaseViewModel
     {
+        // Preferences keys for the "Remember my details" checkbox.
+        const string SavedEmailKey = "SavedEmail";
+        const string SavedPasswordKey = "SavedPassword";
+
         readonly AuthSession _authSession;
         readonly INavigation _navigation;
 
         string _username = string.Empty;
         string _password = string.Empty;
         string _errorMessage = string.Empty;
+        bool _rememberMe;
         bool _isBusy;
 
         public LoginViewModel(AuthSession authSession, INavigation navigation)
@@ -24,6 +29,15 @@ namespace Fix_It.ViewModels
 
             LoginCommand = new Command(async () => await LoginAsync());
             GoToRegisterCommand = new Command(async () => await _navigation.PushAsync(new RegisterPage()));
+
+            // Pre-fill from Preferences if details were saved on a previous successful login.
+            var savedEmail = Preferences.Get(SavedEmailKey, string.Empty);
+            if (!string.IsNullOrEmpty(savedEmail))
+            {
+                _username = savedEmail;
+                _password = Preferences.Get(SavedPasswordKey, string.Empty);
+                _rememberMe = true;
+            }
         }
 
         public string Username
@@ -50,6 +64,12 @@ namespace Fix_It.ViewModels
 
         public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
 
+        public bool RememberMe
+        {
+            get => _rememberMe;
+            set => SetProperty(ref _rememberMe, value);
+        }
+
         public ICommand LoginCommand { get; }
         public ICommand GoToRegisterCommand { get; }
 
@@ -74,6 +94,17 @@ namespace Fix_It.ViewModels
                 {
                     ErrorMessage = "Invalid email or password.";
                     return;
+                }
+
+                if (RememberMe)
+                {
+                    Preferences.Set(SavedEmailKey, Username);
+                    Preferences.Set(SavedPasswordKey, Password);
+                }
+                else
+                {
+                    Preferences.Default.Remove(SavedEmailKey);
+                    Preferences.Default.Remove(SavedPasswordKey);
                 }
 
                 // Hand the signed-in user off to IssueListPage via the shared session, then
