@@ -149,15 +149,46 @@ namespace Fix_It.ViewModels
             }
         }
 
+        // Declaring the permission in the platform manifest (done back in Step 1) only gets us
+        // so far — this is the runtime "request via popup" half of the requirement, plus the
+        // two edge cases a flat RequestAsync call glosses over: iOS won't show its permission
+        // prompt a second time once denied (so we have to point the user at Settings instead),
+        // and Android can be asked to explain itself first via ShouldShowRationale before the
+        // user gets a second chance to grant it.
+        async Task<PermissionStatus> GetCameraPermissionAsync()
+        {
+            var status = await Permissions.RequestAsync<Permissions.Camera>();
+            if (status == PermissionStatus.Granted)
+                return status;
+
+            if (status == PermissionStatus.Denied && DeviceInfo.Platform == DevicePlatform.iOS)
+            {
+                // On iOS, once a permission has been denied it may not be requested again
+                // from within the app — the user has to flip it on in Settings themselves.
+                await _page.DisplayAlertAsync("Warning",
+                    "You must manually enable camera access for this app in settings.", "OK");
+                return status;
+            }
+
+            if (Permissions.ShouldShowRationale<Permissions.Camera>())
+            {
+                // True if the user denied it before and it's being requested again —
+                // explain why we need it before asking a second time.
+                await _page.DisplayAlertAsync("Warning",
+                    "This app requires camera access to attach a photo to your report.", "OK");
+            }
+
+            status = await Permissions.RequestAsync<Permissions.Camera>();
+            return status;
+        }
+
         async Task TakePhotoAsync()
         {
             ErrorMessage = string.Empty;
 
             try
             {
-                // Declaring the permission in the platform manifest (done back in Step 1) only
-                // gets us so far — this is the runtime "request via popup" half of the requirement.
-                var status = await Permissions.RequestAsync<Permissions.Camera>();
+                var status = await GetCameraPermissionAsync();
                 if (status != PermissionStatus.Granted)
                 {
                     ErrorMessage = "Camera permission is required to take a photo.";
