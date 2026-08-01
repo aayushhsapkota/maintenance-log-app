@@ -6,10 +6,9 @@ using Fix_It.Views;
 
 namespace Fix_It.ViewModels
 {
-    // Backs IssueListPage — the app's root page. A simple read-only list of the reports the
-    // signed-in employee has submitted (title, location, priority, submitted date). No status
-    // workflow, stats, or edit/close actions here; that's maintenance-staff territory and out
-    // of scope.
+    // Backs IssueListPage — the app's root page. Lists every submitted issue, not just the
+    // signed-in user's own — anyone can resolve any issue (no role-based accounts), which only
+    // makes sense if everyone can actually see issues they didn't create in the first place.
     public class IssueListViewModel : BaseViewModel
     {
         readonly Page _page;
@@ -30,11 +29,18 @@ namespace Fix_It.ViewModels
 
                 await _page.Navigation.PushAsync(new ReportIssuePage(_authSession.CurrentUser));
             });
+
+            GoToDetailCommand = new Command<IssueReport>(async report =>
+            {
+                if (report is not null)
+                    await _page.Navigation.PushAsync(new IssueDetailPage(report));
+            });
         }
 
         public ObservableCollection<IssueReport> Reports { get; } = new();
 
         public ICommand GoToReportCommand { get; }
+        public ICommand GoToDetailCommand { get; }
 
         public bool IsLoading
         {
@@ -63,7 +69,7 @@ namespace Fix_It.ViewModels
 
         // Called from the page's OnAppearing — fires once at app start (skipped, since
         // CurrentUser is still null then) and again once PopModalAsync reveals this page
-        // after a successful login, or after returning from ReportIssuePage.
+        // after a successful login, or after returning from ReportIssuePage/IssueDetailPage.
         public async Task LoadReportsAsync()
         {
             if (_authSession.CurrentUser is null)
@@ -73,7 +79,7 @@ namespace Fix_It.ViewModels
             IsLoading = true;
             try
             {
-                var reports = await FirebaseDataManager.GetIssueReportsByUserAsync(_authSession.CurrentUser.FirebaseUid);
+                var reports = await FirebaseDataManager.GetAllIssueReportsAsync();
 
                 Reports.Clear();
                 foreach (var report in reports)

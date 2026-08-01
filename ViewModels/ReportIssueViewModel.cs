@@ -6,14 +6,18 @@ using Microsoft.Maui.Graphics.Platform;
 
 namespace Fix_It.ViewModels
 {
-    // Backs ReportIssuePage.
+    // Backs ReportIssuePage — used both for creating a new report and, when existingReport is
+    // supplied, editing one. Only reachable in edit mode via IssueDetailPage's Edit button,
+    // which already guarantees the current user is the report's creator and it isn't resolved.
     public class ReportIssueViewModel : BaseViewModel
     {
         readonly Page _page;
-        readonly string _createdByFirebaseUid;
+        readonly User _currentUser;
+        readonly IssueReport? _existingReport;
         readonly DeviceInfoHelper _deviceInfoHelper = new();
 
         byte[]? _photoBytes;
+        readonly string? _existingPhotoUrl;
 
         string _title = string.Empty;
         string _location = string.Empty;
@@ -26,15 +30,38 @@ namespace Fix_It.ViewModels
 
         // Takes the Page itself (rather than just INavigation) since submitting also needs
         // to show a confirmation alert, which lives on Page alongside Navigation.
-        public ReportIssueViewModel(Page page, string createdByFirebaseUid)
+        public ReportIssueViewModel(Page page, User currentUser, IssueReport? existingReport = null)
         {
             _page = page;
-            _createdByFirebaseUid = createdByFirebaseUid;
+            _currentUser = currentUser;
+            _existingReport = existingReport;
 
             SubmitCommand = new Command(async () => await SubmitAsync());
             TakePhotoCommand = new Command(async () => await TakePhotoAsync());
             PickPhotoCommand = new Command(async () => await PickPhotoAsync());
+
+            if (existingReport is not null)
+            {
+                _title = existingReport.Title;
+                _location = existingReport.Location;
+                _description = existingReport.Description;
+                _selectedPriority = existingReport.Priority;
+                _existingPhotoUrl = existingReport.PhotoUrl;
+
+                if (existingReport.HasPhoto)
+                {
+                    // Loaded straight from the remote URL rather than downloaded into memory —
+                    // only replaced if the user actively picks/captures a different photo.
+                    PhotoPreview = ImageSource.FromUri(new Uri(existingReport.PhotoUrl!));
+                    _photoStatusText = "Current photo";
+                }
+            }
         }
+
+        public bool IsEditMode => _existingReport is not null;
+        public string PageTitle => IsEditMode ? "Edit Issue" : "Report Issue";
+        public string PageSubtitle => IsEditMode ? "Update the details below" : "New maintenance request";
+        public string SubmitButtonText => IsEditMode ? "Save Changes" : "Submit Report";
 
         // Bound to the Priority Picker's ItemsSource — a fixed list is enough for this phase,
         // no need for a database table just to hold four strings.
@@ -79,15 +106,15 @@ namespace Fix_It.ViewModels
 
         public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
 
-        // Built from the in-memory photo bytes for the preview Image — nothing is written to
-        // local disk anymore, the photo only ever leaves memory via the upload to Storage.
+        // Built from the in-memory photo bytes for a newly picked/captured photo, or from the
+        // existing remote PhotoUrl in edit mode until the user replaces it.
         public ImageSource? PhotoPreview
         {
             get => _photoPreview;
             private set => SetProperty(ref _photoPreview, value);
         }
 
-        public bool HasPhoto => _photoBytes is not null;
+        public bool HasPhoto => _photoBytes is not null || !string.IsNullOrEmpty(_existingPhotoUrl);
 
         public string PhotoStatusText
         {
@@ -120,26 +147,49 @@ namespace Fix_It.ViewModels
             _isBusy = true;
             try
             {
-                var report = new IssueReport
+                if (IsEditMode)
                 {
-                    Title = Title,
-                    Location = Location,
-                    Description = Description,
-                    Priority = SelectedPriority,
-                    CreatedByFirebaseUid = _createdByFirebaseUid,
-                    CreatedAtUtc = DateTime.UtcNow
-                };
+                    var report = _existingReport!;
+                    report.Title = Title;
+                    report.Location = Location;
+                    report.Description = Description;
+                    report.Priority = SelectedPriority;
 
-                // Uploads the photo to Firebase Storage (if any) and writes the report to
-                // Firestore in one call — see FirebaseDataManager.SaveIssueReportAsync.
-                var success = await FirebaseDataManager.SaveIssueReportAsync(report, _photoBytes);
-                if (!success)
-                {
-                    ErrorMessage = "Failed to submit report. Please check your connection and try again.";
-                    return;
+                    // _photoBytes stays null unless the user picked/captured a replacement —
+                    // UpdateIssueReportAsync leaves the existing PhotoUrl alone in that case.
+                    var success = await FirebaseDataManager.UpdateIssueReportAsync(report, _photoBytes, _currentUser.Username);
+                    if (!success)
+                    {
+                        ErrorMessage = "Failed to save changes. Please check your connection and try again.";
+                        return;
+                    }
+
+                    await ShowToastAsync("Changes saved.");
                 }
+                else
+                {
+                    var report = new IssueReport
+                    {
+                        Title = Title,
+                        Location = Location,
+                        Description = Description,
+                        Priority = SelectedPriority,
+                        CreatedByFirebaseUid = _currentUser.FirebaseUid,
+                        CreatedByEmail = _currentUser.Username,
+                        CreatedAtUtc = DateTime.UtcNow
+                    };
 
-                await _page.DisplayAlertAsync("Report Submitted", "Your maintenance issue has been reported.", "OK");
+                    // Uploads the photo to Firebase Storage (if any) and writes the report to
+                    // Firestore in one call — see FirebaseDataManager.SaveIssueReportAsync.
+                    var success = await FirebaseDataManager.SaveIssueReportAsync(report, _photoBytes);
+                    if (!success)
+                    {
+                        ErrorMessage = "Failed to submit report. Please check your connection and try again.";
+                        return;
+                    }
+
+                    await _page.DisplayAlertAsync("Report Submitted", "Your maintenance issue has been reported.", "OK");
+                }
 
                 await _page.Navigation.PopAsync();
             }
@@ -241,8 +291,6 @@ namespace Fix_It.ViewModels
         // several MB as raw bytes plus far more once decoded to a bitmap for the preview, which
         // was OOM-crashing the app on memory-constrained devices/emulators; capping the longest
         // edge keeps both comfortably small while still being plenty clear for a report photo.
-
-        //This downsizing code is done by AI
         const int MaxPhotoDimension = 1600;
 
         async Task LoadPhotoAsync(FileResult photo)

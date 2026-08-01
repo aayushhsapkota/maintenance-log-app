@@ -2,7 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="Fix_It.Views.ReportIssuePage"
-             Title="Report Issue"
+             Title="{Binding PageTitle}"
              BackgroundColor="{StaticResource PageBackground}">
 
     <!-- Element-level override: BackgroundColor is set directly on this ContentPage instance,
@@ -12,7 +12,7 @@
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="16">
 
-            <Label Text="New maintenance request"
+            <Label Text="{Binding PageSubtitle}"
                    TextColor="{StaticResource Gray500}"
                    Margin="0,0,0,8" />
 
@@ -91,7 +91,7 @@
                            Style="{StaticResource ErrorLabel}"
                            IsVisible="{Binding HasError}" />
 
-                    <Button Text="Submit Report"
+                    <Button Text="{Binding SubmitButtonText}"
                             Style="{StaticResource PrimaryButton}"
                             Command="{Binding SubmitCommand}"
                             Margin="0,10,0,0" />

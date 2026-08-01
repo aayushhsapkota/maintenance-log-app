@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:Fix_It.Models"
+             x:Class="Fix_It.Views.IssueDetailPage"
+             Title="Issue Details"
+             BackgroundColor="{StaticResource PageBackground}">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Grid.Column="0"
+                       Text="{Binding Report.Title}"
+                       FontFamily="OpenSansSemibold"
+                       FontSize="22" />
+
+                <!-- Two mutually-exclusive badges rather than one Border with a bound color —
+                     keeps this in plain {Binding}, no value converter needed. -->
+                <Border Grid.Column="1"
+                        BackgroundColor="{StaticResource ErrorRed}"
+                        StrokeShape="RoundRectangle 20"
+                        Padding="10,4"
+                        VerticalOptions="Start"
+                        IsVisible="{Binding CanResolve}">
+                    <Label Text="Open" TextColor="{StaticResource White}" FontSize="12" FontFamily="OpenSansSemibold" />
+                </Border>
+                <Border Grid.Column="1"
+                        BackgroundColor="{StaticResource SuccessGreen}"
+                        StrokeShape="RoundRectangle 20"
+                        Padding="10,4"
+                        VerticalOptions="Start"
+                        IsVisible="{Binding IsResolved}">
+                    <Label Text="Resolved" TextColor="{StaticResource White}" FontSize="12" FontFamily="OpenSansSemibold" />
+                </Border>
+            </Grid>
+
+            <Label Text="{Binding Report.Priority, StringFormat='Priority: {0}'}"
+                   TextColor="{StaticResource Primary}"
+                   FontSize="13" />
+
+            <Border BackgroundColor="{StaticResource CardBackground}"
+                    Stroke="{StaticResource BorderGray}"
+                    StrokeShape="RoundRectangle 14"
+                    StrokeThickness="1"
+                    Padding="20">
+                <VerticalStackLayout Spacing="14">
+
+                    <Label Text="Description" FontFamily="OpenSansSemibold" FontSize="16" />
+                    <Label Text="{Binding Report.Description}" TextColor="{StaticResource Gray600}" />
+
+                    <BoxView HeightRequest="1" Color="{StaticResource BorderGray}" />
+
+                    <VerticalStackLayout Spacing="2">
+                        <Label Text="Location" Style="{StaticResource FieldLabel}" />
+                        <Label Text="{Binding Report.Location}" FontFamily="OpenSansSemibold" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="2">
+                        <Label Text="Submitted By" Style="{StaticResource FieldLabel}" />
+                        <Label Text="{Binding Report.CreatedByEmail}" FontFamily="OpenSansSemibold" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="2">
+                        <Label Text="Submitted On" Style="{StaticResource FieldLabel}" />
+                        <Label Text="{Binding Report.CreatedAtUtc, StringFormat='{0:MMM d, yyyy h:mm tt}'}" FontFamily="OpenSansSemibold" />
+                    </VerticalStackLayout>
+
+                    <BoxView HeightRequest="1" Color="{StaticResource BorderGray}" IsVisible="{Binding Report.HasPhoto}" />
+
+                    <VerticalStackLayout Spacing="10" IsVisible="{Binding Report.HasPhoto}">
+                        <Label Text="Photo Evidence" FontFamily="OpenSansSemibold" FontSize="16" />
+                        <Image Source="{Binding Report.PhotoUrl}"
+                               HeightRequest="180"
+                               Aspect="AspectFit" />
+                    </VerticalStackLayout>
+
+                    <BoxView HeightRequest="1" Color="{StaticResource BorderGray}" />
+
+                    <Label Text="Activity" FontFamily="OpenSansSemibold" FontSize="16" />
+
+                    <!-- BindableLayout rather than CollectionView: this list is small, never
+                         scrolls on its own, and lives inside the page's own ScrollView — exactly
+                         the case where BindableLayout fits better than a virtualized control. -->
+                    <VerticalStackLayout Spacing="12" BindableLayout.ItemsSource="{Binding Report.Activity}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="models:IssueActivityEntry">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                    <Ellipse Grid.Column="0"
+                                             Fill="{StaticResource Primary}"
+                                             WidthRequest="10"
+                                             HeightRequest="10"
+                                             VerticalOptions="Start"
+                                             Margin="0,5,0,0" />
+                                    <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                        <Label>
+                                            <Label.FormattedText>
+                                                <FormattedString>
+                                                    <Span Text="{Binding ActorEmail}" FontAttributes="Bold" />
+                                                    <Span Text=" " />
+                                                    <Span Text="{Binding Action}" />
+                                                </FormattedString>
+                                            </Label.FormattedText>
+                                        </Label>
+                                        <Label Text="{Binding TimestampUtc, StringFormat='{0:MMM d, yyyy h:mm tt}'}"
+                                               TextColor="{StaticResource Gray400}"
+                                               FontSize="12" />
+                                    </VerticalStackLayout>
+                                </Grid>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+
+                </VerticalStackLayout>
+            </Border>
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <Button Grid.Column="0"
+                        Text="Edit"
+                        Style="{StaticResource SecondaryButton}"
+                        Command="{Binding EditCommand}"
+                        IsVisible="{Binding CanEdit}" />
+
+                <Button Grid.Column="1"
+                        Text="Close Issue"
+                        Style="{StaticResource SuccessButton}"
+                        Command="{Binding ResolveCommand}"
+                        IsVisible="{Binding CanResolve}" />
+            </Grid>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

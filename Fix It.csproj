@@ -60,7 +60,12 @@
 	<ItemGroup>
 		<PackageReference Include="CommunityToolkit.Maui" Version="15.0.0" />
 		<PackageReference Include="FirebaseAuthentication.net" Version="4.1.0" />
-		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+		<!-- Pinned above $(MauiVersion) (10.0.20) to satisfy CommunityToolkit.Maui's minimum
+		     (10.0.60) — the installed maui-windows workload hasn't caught up to that release
+		     yet. Experimental: NuGet-level override, not guaranteed to match the native
+		     workload tooling. Revert to Version="$(MauiVersion)" and drop CommunityToolkit.Maui
+		     if this causes build/runtime problems. -->
+		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.60" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
 	</ItemGroup>
 

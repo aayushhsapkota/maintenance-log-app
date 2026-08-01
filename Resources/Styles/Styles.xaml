@@ -446,6 +446,12 @@
         <Setter Property="HorizontalOptions" Value="Fill" />
     </Style>
 
+    <!-- For the "positive/completing" action (Close Issue), distinct from PrimaryButton's
+         neutral brand blue used for Edit/Sign In/Submit-style actions. -->
+    <Style TargetType="Button" x:Key="SuccessButton" BasedOn="{StaticResource PrimaryButton}">
+        <Setter Property="BackgroundColor" Value="{StaticResource SuccessGreen}" />
+    </Style>
+
     <Style TargetType="Button" x:Key="SecondaryButton">
         <Setter Property="BackgroundColor" Value="{StaticResource CardBackground}" />
         <Setter Property="TextColor" Value="{StaticResource Gray900}" />

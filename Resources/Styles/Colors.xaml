@@ -17,6 +17,7 @@
     <Color x:Key="CardBackground">#FFFFFF</Color>
     <Color x:Key="BorderGray">#E2E5EA</Color>
     <Color x:Key="ErrorRed">#D64545</Color>
+    <Color x:Key="SuccessGreen">#2F9E5C</Color>
 
     <Color x:Key="White">White</Color>
     <Color x:Key="Black">Black</Color>
@@ -42,6 +43,7 @@
     <SolidColorBrush x:Key="CardBackgroundBrush" Color="{StaticResource CardBackground}"/>
     <SolidColorBrush x:Key="BorderGrayBrush" Color="{StaticResource BorderGray}"/>
     <SolidColorBrush x:Key="ErrorRedBrush" Color="{StaticResource ErrorRed}"/>
+    <SolidColorBrush x:Key="SuccessGreenBrush" Color="{StaticResource SuccessGreen}"/>
 
     <SolidColorBrush x:Key="Gray100Brush" Color="{StaticResource Gray100}"/>
     <SolidColorBrush x:Key="Gray200Brush" Color="{StaticResource Gray200}"/>
