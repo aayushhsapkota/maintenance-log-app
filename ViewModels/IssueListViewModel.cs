@@ -45,12 +45,15 @@ namespace Fix_It.ViewModels
                 if (report is not null)
                     await _page.Navigation.PushAsync(new IssueDetailPage(report));
             });
+
+            GoToNotificationsCommand = new Command(async () => await _page.Navigation.PushAsync(new NotificationsPage()));
         }
 
         public ObservableCollection<IssueReport> Reports { get; } = new();
 
         public ICommand GoToReportCommand { get; }
         public ICommand GoToDetailCommand { get; }
+        public ICommand GoToNotificationsCommand { get; }
 
         public bool IsLoading
         {
@@ -98,7 +101,7 @@ namespace Fix_It.ViewModels
             {
                 var reports = await FirebaseDataManager.GetAllIssueReportsAsync();
 
-                NotifyAboutChanges(reports);
+                await NotifyAboutChangesAsync(reports);
                 _lastKnownStatusByReportId = reports.ToDictionary(r => r.Id, r => r.Status);
 
                 Reports.Clear();
@@ -111,7 +114,7 @@ namespace Fix_It.ViewModels
             }
         }
 
-        void NotifyAboutChanges(List<IssueReport> reports)
+        async Task NotifyAboutChangesAsync(List<IssueReport> reports)
         {
             // Nothing to compare against yet (first load this session) — skip rather than
             // treating every existing report as "new".
@@ -125,6 +128,10 @@ namespace Fix_It.ViewModels
                     // Every signed-in user's device independently notices this and notifies
                     // itself — the closest approximation of "notify all staff" without a server.
                     NotificationManager.SendNotification("New Issue Reported", report.Title, DateTime.Now);
+
+                    // Logged separately from the system notification so the Notifications tab
+                    // has history to show even after the OS tray notification is dismissed.
+                    await FirebaseDataManager.LogNotificationAsync("New Issue Reported", report.Title);
                 }
             }
         }

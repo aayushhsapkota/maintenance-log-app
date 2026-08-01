@@ -24,6 +24,7 @@ namespace Fix_It.Services
         const string FirestoreBaseUrl = $"https://firestore.googleapis.com/v1/projects/{ProjectId}/databases/(default)/documents";
         const string StorageBaseUrl = $"https://firebasestorage.googleapis.com/v0/b/{StorageBucket}/o";
         const string IssueReportsCollection = "issueReports";
+        const string NotificationsCollection = "notifications";
 
         static readonly HttpClient _httpClient = new();
 
@@ -205,6 +206,92 @@ namespace Fix_It.Services
                 Console.WriteLine($"ResolveIssueReportAsync failed: {ex.Message}");
                 return false;
             }
+        }
+
+        // Persists a fired notification so the Notifications tab has history to show — the
+        // system notification itself disappears once dismissed from the OS tray, this is what
+        // survives across devices and app restarts.
+        public static async Task<bool> LogNotificationAsync(string title, string message)
+        {
+            try
+            {
+                var idToken = await FirebaseAuthManager.GetIdTokenAsync();
+                if (idToken is null)
+                    return false;
+
+                var fields = new
+                {
+                    title = new { stringValue = title },
+                    message = new { stringValue = message },
+                    timestampUtc = new { timestampValue = DateTime.UtcNow.ToString("o") }
+                };
+
+                using var request = new HttpRequestMessage(HttpMethod.Post, $"{FirestoreBaseUrl}/{NotificationsCollection}")
+                {
+                    Content = JsonContent.Create(new { fields })
+                };
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", idToken);
+
+                var response = await _httpClient.SendAsync(request);
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"LogNotificationAsync failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        // Most recent notifications across all users — there's no per-user read/unread state,
+        // so this is a shared history everyone sees the same way, matching how "New Issue
+        // Reported" itself is a broadcast-style notification.
+        public static async Task<List<NotificationLogEntry>> GetRecentNotificationsAsync(int limit = 30)
+        {
+            try
+            {
+                var idToken = await FirebaseAuthManager.GetIdTokenAsync();
+                if (idToken is null)
+                    return new List<NotificationLogEntry>();
+
+                using var request = new HttpRequestMessage(HttpMethod.Get, $"{FirestoreBaseUrl}/{NotificationsCollection}");
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", idToken);
+
+                var response = await _httpClient.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
+                    return new List<NotificationLogEntry>();
+
+                using var stream = await response.Content.ReadAsStreamAsync();
+                using var json = await JsonDocument.ParseAsync(stream);
+
+                var entries = new List<NotificationLogEntry>();
+                if (json.RootElement.TryGetProperty("documents", out var documents))
+                {
+                    foreach (var document in documents.EnumerateArray())
+                        entries.Add(ParseNotificationLogEntry(document));
+                }
+
+                return entries.OrderByDescending(n => n.TimestampUtc).Take(limit).ToList();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"GetRecentNotificationsAsync failed: {ex.Message}");
+                return new List<NotificationLogEntry>();
+            }
+        }
+
+        static NotificationLogEntry ParseNotificationLogEntry(JsonElement document)
+        {
+            var fields = document.GetProperty("fields");
+
+            return new NotificationLogEntry
+            {
+                Title = GetString(fields, "title"),
+                Message = GetString(fields, "message"),
+                TimestampUtc = DateTime.Parse(
+                    fields.GetProperty("timestampUtc").GetProperty("timestampValue").GetString()!,
+                    null,
+                    DateTimeStyles.RoundtripKind)
+            };
         }
 
         static async Task<bool> PatchAsync(string documentId, Dictionary<string, object> allFields, string[] fieldPaths, string idToken)

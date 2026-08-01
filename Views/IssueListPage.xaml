@@ -13,7 +13,7 @@
              this page — the ActivityIndicator below is what's visible instead. -->
         <Grid Padding="20" RowDefinitions="Auto,*" RowSpacing="16" IsVisible="{Binding IsSignedIn}">
 
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
             <VerticalStackLayout Grid.Column="0" Spacing="2">
                 <Label Text="All Reports"
                        FontFamily="OpenSansSemibold"
@@ -23,7 +23,20 @@
                        TextColor="{StaticResource Gray500}" />
             </VerticalStackLayout>
 
+            <!-- Bell icon — entry point to NotificationsPage. Style="{StaticResource
+                 SecondaryButton}" is the Named style; the fixed square size overriding that
+                 style's HeightRequest is set directly on this element (Element-level). -->
             <Button Grid.Column="1"
+                    Text="&#128276;"
+                    Style="{StaticResource SecondaryButton}"
+                    Command="{Binding GoToNotificationsCommand}"
+                    HeightRequest="44"
+                    WidthRequest="44"
+                    FontSize="18"
+                    Padding="0"
+                    VerticalOptions="Center" />
+
+            <Button Grid.Column="2"
                     Text="+ Report"
                     Style="{StaticResource PrimaryButton}"
                     Command="{Binding GoToReportCommand}"
