@@ -27,6 +27,14 @@ namespace Fix_It.ViewModels
         // call's diff compares against.
         Dictionary<string, string> _lastKnownStatusByReportId = new();
 
+        // Tracks "have we ever completed a load" separately from the dictionary above — using
+        // _lastKnownStatusByReportId.Count == 0 for that check was a bug: if the very first load
+        // happens to find zero existing reports (e.g. a fresh Firestore collection, or your very
+        // first report ever), the baseline stays empty after that load too, so Count == 0 never
+        // stops being true and every future report looks like "still the first load" forever —
+        // silently skipping the notification and Firestore log write every single time.
+        bool _hasLoadedBaseline;
+
         public IssueListViewModel(Page page, AuthSession authSession)
         {
             _page = page;
@@ -46,7 +54,11 @@ namespace Fix_It.ViewModels
                     await _page.Navigation.PushAsync(new IssueDetailPage(report));
             });
 
-            GoToNotificationsCommand = new Command(async () => await _page.Navigation.PushAsync(new NotificationsPage()));
+            GoToNotificationsCommand = new Command(async () =>
+            {
+                await _page.Navigation.PushAsync(new NotificationsPage());
+                HasUnseenNotifications = false;
+            });
         }
 
         public ObservableCollection<IssueReport> Reports { get; } = new();
@@ -54,6 +66,17 @@ namespace Fix_It.ViewModels
         public ICommand GoToReportCommand { get; }
         public ICommand GoToDetailCommand { get; }
         public ICommand GoToNotificationsCommand { get; }
+
+        bool _hasUnseenNotifications;
+
+        // Drives the red dot badge on the bell icon — a lightweight "something's new" signal,
+        // not per-item read/unread tracking. Set when a notification fires, cleared as soon as
+        // the Notifications screen is opened.
+        public bool HasUnseenNotifications
+        {
+            get => _hasUnseenNotifications;
+            private set => SetProperty(ref _hasUnseenNotifications, value);
+        }
 
         public bool IsLoading
         {
@@ -103,6 +126,7 @@ namespace Fix_It.ViewModels
 
                 await NotifyAboutChangesAsync(reports);
                 _lastKnownStatusByReportId = reports.ToDictionary(r => r.Id, r => r.Status);
+                _hasLoadedBaseline = true;
 
                 Reports.Clear();
                 foreach (var report in reports)
@@ -118,21 +142,33 @@ namespace Fix_It.ViewModels
         {
             // Nothing to compare against yet (first load this session) — skip rather than
             // treating every existing report as "new".
-            if (_lastKnownStatusByReportId.Count == 0)
+            if (!_hasLoadedBaseline)
                 return;
 
-            foreach (var report in reports)
-            {
-                if (!_lastKnownStatusByReportId.ContainsKey(report.Id))
-                {
-                    // Every signed-in user's device independently notices this and notifies
-                    // itself — the closest approximation of "notify all staff" without a server.
-                    NotificationManager.SendNotification("New Issue Reported", report.Title, DateTime.Now);
+            var newReports = reports.Where(r => !_lastKnownStatusByReportId.ContainsKey(r.Id)).ToList();
+            if (newReports.Count == 0)
+                return;
 
-                    // Logged separately from the system notification so the Notifications tab
-                    // has history to show even after the OS tray notification is dismissed.
-                    await FirebaseDataManager.LogNotificationAsync("New Issue Reported", report.Title);
-                }
+            // Android 13+ requires this runtime permission before any notification can actually
+            // show — silently a no-op on other platforms. Requested lazily, right before the
+            // first notification this pass actually needs to fire, rather than unconditionally
+            // on every load.
+            await new PostNotificationsPermission().RequestAsync();
+
+            foreach (var report in newReports)
+            {
+                // Every signed-in user's device independently notices this and notifies
+                // itself — the closest approximation of "notify all staff" without a server.
+                // Scheduled a second into the future, not for "now" exactly — some platforms
+                // (Windows in particular) silently drop a scheduled notification whose delivery
+                // time has already passed by the time the OS actually processes the request.
+                NotificationManager.SendNotification("New Issue Reported", report.Title, DateTime.Now.AddSeconds(1));
+
+                // Logged separately from the system notification so the Notifications tab
+                // has history to show even after the OS tray notification is dismissed.
+                await FirebaseDataManager.LogNotificationAsync("New Issue Reported", report.Title);
+
+                HasUnseenNotifications = true;
             }
         }
 

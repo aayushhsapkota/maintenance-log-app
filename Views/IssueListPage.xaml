@@ -25,16 +25,28 @@
 
             <!-- Bell icon — entry point to NotificationsPage. Style="{StaticResource
                  SecondaryButton}" is the Named style; the fixed square size overriding that
-                 style's HeightRequest is set directly on this element (Element-level). -->
-            <Button Grid.Column="1"
-                    Text="&#128276;"
-                    Style="{StaticResource SecondaryButton}"
-                    Command="{Binding GoToNotificationsCommand}"
-                    HeightRequest="44"
-                    WidthRequest="44"
-                    FontSize="18"
-                    Padding="0"
-                    VerticalOptions="Center" />
+                 style's HeightRequest is set directly on this element (Element-level). The red
+                 dot is a lightweight "something's new" signal (HasUnseenNotifications), not
+                 per-item read/unread tracking — just overlaid in the same grid cell as the
+                 button so it sits on its top-right corner. -->
+            <Grid Grid.Column="1" VerticalOptions="Center">
+                <Button Text="&#128276;"
+                        Style="{StaticResource SecondaryButton}"
+                        Command="{Binding GoToNotificationsCommand}"
+                        HeightRequest="44"
+                        WidthRequest="44"
+                        FontSize="18"
+                        Padding="0" />
+
+                <Ellipse Fill="{StaticResource ErrorRed}"
+                         WidthRequest="12"
+                         HeightRequest="12"
+                         HorizontalOptions="End"
+                         VerticalOptions="Start"
+                         Margin="0,2,2,0"
+                         IsVisible="{Binding HasUnseenNotifications}"
+                         InputTransparent="True" />
+            </Grid>
 
             <Button Grid.Column="2"
                     Text="+ Report"
