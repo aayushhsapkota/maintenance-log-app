@@ -118,21 +118,13 @@ namespace Fix_It.ViewModels
             if (_lastKnownStatusByReportId.Count == 0)
                 return;
 
-            var currentUserUid = _authSession.CurrentUser?.FirebaseUid;
-
             foreach (var report in reports)
             {
-                if (!_lastKnownStatusByReportId.TryGetValue(report.Id, out var previousStatus))
+                if (!_lastKnownStatusByReportId.ContainsKey(report.Id))
                 {
                     // Every signed-in user's device independently notices this and notifies
                     // itself — the closest approximation of "notify all staff" without a server.
                     NotificationManager.SendNotification("New Issue Reported", report.Title, DateTime.Now);
-                }
-                else if (previousStatus == "Open" && report.IsResolved && report.CreatedByFirebaseUid == currentUserUid)
-                {
-                    // Only fires on the reporter's own device, since only their device has a
-                    // report with a matching CreatedByFirebaseUid to react to.
-                    NotificationManager.SendNotification("Issue Resolved", $"Your report \"{report.Title}\" has been resolved.", DateTime.Now);
                 }
             }
         }
