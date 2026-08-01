@@ -12,8 +12,8 @@ namespace Fix_It.ViewModels
     public class IssueListViewModel : BaseViewModel
     {
         // Polling interval for the foreground push-notification approximation — see
-        // LoadReportsAsync(notifyOnChanges:) and StartPolling(). Short enough to demo without a
-        // long wait; there's no server pushing to us, so this is what stands in for it.
+        // LoadReportsAsync and StartPolling. Short enough to demo without a long wait; there's
+        // no server pushing to us, so this is what stands in for it.
         static readonly TimeSpan PollingInterval = TimeSpan.FromSeconds(15);
 
         readonly Page _page;
@@ -24,7 +24,7 @@ namespace Fix_It.ViewModels
         IDispatcherTimer? _pollTimer;
 
         // reportId -> status, as of the last LoadReportsAsync call — the baseline the next
-        // notifyOnChanges diff compares against.
+        // call's diff compares against.
         Dictionary<string, string> _lastKnownStatusByReportId = new();
 
         public IssueListViewModel(Page page, AuthSession authSession)
@@ -78,16 +78,16 @@ namespace Fix_It.ViewModels
         public User? CurrentUser => _authSession.CurrentUser;
 
         // Called from the page's OnAppearing — fires once at app start (skipped, since
-        // CurrentUser is still null then) and again once PopModalAsync reveals this page
-        // after a successful login, or after returning from ReportIssuePage/IssueDetailPage.
+        // CurrentUser is still null then), again once PopModalAsync reveals this page after a
+        // successful login, again on returning from ReportIssuePage/IssueDetailPage, and
+        // periodically from the polling timer (see StartPolling).
         //
-        // notifyOnChanges is only ever true from the polling timer (see StartPolling). There's
-        // no server pushing us real push notifications — this is the foreground approximation:
-        // compare what we just fetched against what we saw last time, and fire a local
-        // notification for anything that looks like "a new issue" or "one of my own reports got
-        // resolved". Ordinary navigation refreshes stay silent so returning to this page doesn't
-        // spam a notification for changes that happened while you were on a sub-page.
-        public async Task LoadReportsAsync(bool notifyOnChanges = false)
+        // Always diffs against the previous snapshot (NotifyAboutChanges) rather than only doing
+        // so from the timer — diffing is a no-op when nothing actually changed, so there's no
+        // real downside, and it's what makes "return to the list right after creating or
+        // resolving something yourself" actually fire a notification instead of that change
+        // getting silently folded into the baseline before the next poll ever sees it.
+        public async Task LoadReportsAsync()
         {
             if (_authSession.CurrentUser is null)
                 return;
@@ -98,9 +98,7 @@ namespace Fix_It.ViewModels
             {
                 var reports = await FirebaseDataManager.GetAllIssueReportsAsync();
 
-                if (notifyOnChanges)
-                    NotifyAboutChanges(reports);
-
+                NotifyAboutChanges(reports);
                 _lastKnownStatusByReportId = reports.ToDictionary(r => r.Id, r => r.Status);
 
                 Reports.Clear();
@@ -148,7 +146,7 @@ namespace Fix_It.ViewModels
 
             _pollTimer = _page.Dispatcher.CreateTimer();
             _pollTimer.Interval = PollingInterval;
-            _pollTimer.Tick += async (_, _) => await LoadReportsAsync(notifyOnChanges: true);
+            _pollTimer.Tick += async (_, _) => await LoadReportsAsync();
             _pollTimer.Start();
         }
 
