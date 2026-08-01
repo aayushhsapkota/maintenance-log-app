@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using CommunityToolkit.Maui.Alerts;
 
 namespace Fix_It.ViewModels
 {
@@ -9,6 +10,23 @@ namespace Fix_It.ViewModels
     public abstract class BaseViewModel : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler? PropertyChanged;
+
+        // Shared by any ViewModel that wants a brief, auto-dismissing confirmation (e.g. "Login
+        // successful!") instead of a DisplayAlert that needs a tap to dismiss. Wrapped in its
+        // own try/catch — like the MediaPicker commands elsewhere in the app, this is called
+        // from Command lambdas that run fire-and-forget, so an unhandled exception here would
+        // otherwise crash the whole app over what's just a UI nicety.
+        protected static async Task ShowToastAsync(string message)
+        {
+            try
+            {
+                await Toast.Make(message).Show();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ShowToastAsync failed: {ex.Message}");
+            }
+        }
 
         // Call this from a property setter instead of raising PropertyChanged by hand everywhere.
         // [CallerMemberName] automatically fills in propertyName with the caller's property name,

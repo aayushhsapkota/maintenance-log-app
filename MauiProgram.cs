@@ -1,4 +1,5 @@
-﻿using Fix_It.Services;
+﻿using CommunityToolkit.Maui;
+using Fix_It.Services;
 using Microsoft.Extensions.Logging;
 
 namespace Fix_It
@@ -10,6 +11,7 @@ namespace Fix_It
             var builder = MauiApp.CreateBuilder();
             builder
                 .UseMauiApp<App>()
+                .UseMauiCommunityToolkit() // required for Toast (CommunityToolkit.Maui.Alerts.Toast)
                 .ConfigureFonts(fonts =>
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");

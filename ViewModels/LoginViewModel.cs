@@ -107,6 +107,8 @@ namespace Fix_It.ViewModels
                     Preferences.Default.Remove(SavedPasswordKey);
                 }
 
+                await ShowToastAsync("Login successful!");
+
                 // Hand the signed-in user off to IssueListPage via the shared session, then
                 // close the ENTIRE modal layer (LoginPage + RegisterPage if it's on top of it)
                 // in one call — PopModalAsync pops the whole NavigationPage that was pushed

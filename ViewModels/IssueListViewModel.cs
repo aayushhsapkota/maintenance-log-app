@@ -16,6 +16,7 @@ namespace Fix_It.ViewModels
         readonly AuthSession _authSession;
 
         bool _isLoading;
+        bool _isSignedIn;
 
         public IssueListViewModel(Page page, AuthSession authSession)
         {
@@ -41,6 +42,21 @@ namespace Fix_It.ViewModels
             private set => SetProperty(ref _isLoading, value);
         }
 
+        // Drives a loading placeholder in the XAML so the brief window before the login modal
+        // covers this page (see App.xaml.cs) reads as an intentional loading beat instead of
+        // flashing the real "My Reports" content (header, empty-state text) before login appears.
+        public bool IsSignedIn
+        {
+            get => _isSignedIn;
+            private set
+            {
+                if (SetProperty(ref _isSignedIn, value))
+                    OnPropertyChanged(nameof(IsCheckingAuth));
+            }
+        }
+
+        public bool IsCheckingAuth => !IsSignedIn;
+
         // Exposed so the page's OnAppearing can decide whether to present the login modal
         // (no one signed in yet) or refresh the list (already signed in).
         public User? CurrentUser => _authSession.CurrentUser;
@@ -53,6 +69,7 @@ namespace Fix_It.ViewModels
             if (_authSession.CurrentUser is null)
                 return;
 
+            IsSignedIn = true;
             IsLoading = true;
             try
             {

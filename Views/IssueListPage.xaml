@@ -6,7 +6,12 @@
              Title="My Reports"
              BackgroundColor="{StaticResource PageBackground}">
 
-    <Grid Padding="20" RowDefinitions="Auto,*" RowSpacing="16">
+    <Grid>
+
+        <!-- Shown only once someone's actually signed in (IsSignedIn set at the start of
+             LoadReportsAsync). Before that — the brief window before the login modal covers
+             this page — the ActivityIndicator below is what's visible instead. -->
+        <Grid Padding="20" RowDefinitions="Auto,*" RowSpacing="16" IsVisible="{Binding IsSignedIn}">
 
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
             <VerticalStackLayout Grid.Column="0" Spacing="2">
@@ -62,6 +67,13 @@
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>
+
+        </Grid>
+
+        <ActivityIndicator IsRunning="{Binding IsCheckingAuth}"
+                            IsVisible="{Binding IsCheckingAuth}"
+                            HorizontalOptions="Center"
+                            VerticalOptions="Center" />
 
     </Grid>
 
