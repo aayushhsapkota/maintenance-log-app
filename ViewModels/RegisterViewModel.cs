@@ -98,7 +98,7 @@ namespace Fix_It.ViewModels
                 }
 
                 // Account created — go back to Login so the user can sign in with it.
-                await ShowToastAsync("Account created successfully!");
+                NotificationManager.ShowToast("Account created successfully!");
                 await _navigation.PopAsync();
             }
             finally

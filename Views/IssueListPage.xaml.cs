@@ -26,7 +26,19 @@ namespace Fix_It.Views
             // actually signed in — which happens both right after the modal closes (PopModalAsync
             // reveals this page) and after returning from ReportIssuePage.
             if (_viewModel.CurrentUser is not null)
+            {
                 await _viewModel.LoadReportsAsync();
+                _viewModel.StartPolling();
+            }
+        }
+
+        // Polling (the foreground push-notification approximation) should only run while this
+        // page is actually the visible one — not while a sub-page (Report Issue, Issue Detail,
+        // the login modal) is covering it.
+        protected override void OnDisappearing()
+        {
+            base.OnDisappearing();
+            _viewModel.StopPolling();
         }
     }
 }

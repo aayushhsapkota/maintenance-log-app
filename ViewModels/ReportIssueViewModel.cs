@@ -164,7 +164,7 @@ namespace Fix_It.ViewModels
                         return;
                     }
 
-                    await ShowToastAsync("Changes saved.");
+                    NotificationManager.ShowToast("Changes saved.");
                 }
                 else
                 {

@@ -34,7 +34,10 @@
 		<WindowsPackageType>None</WindowsPackageType>
 
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
-		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
+		<!-- Raised from 21.0 to 26.0 (Android 8.0, 2017) for the push-notification feature —
+		     NotificationChannel/CreateNotificationChannel require API 26. Realistic floor for a
+		     2026 class project; virtually every real device/emulator is well above this. -->
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">26.0</SupportedOSPlatformVersion>
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
 		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
 	</PropertyGroup>
@@ -67,6 +70,17 @@
 		     if this causes build/runtime problems. -->
 		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.60" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+	</ItemGroup>
+
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+		<!-- Windows-only: ToastContentBuilder for the Platforms/Windows NotificationManager
+		     implementation. Renamed successor to the lab's "Toolkit.Uwp.Notifications" (same
+		     API, same authors) — that exact package id no longer exists on NuGet. -->
+		<PackageReference Include="CommunityToolkit.WinUI.Notifications" Version="7.1.2" />
+		<!-- Override CommunityToolkit.WinUI.Notifications' transitive System.Drawing.Common 4.7.0
+		     (NU1904: CVE-2021-24112, critical) with the patched release. The CVE only affects
+		     macOS/Linux runtimes anyway, but this is a one-line fix either way. -->
+		<PackageReference Include="System.Drawing.Common" Version="4.7.2" />
 	</ItemGroup>
 
 </Project>

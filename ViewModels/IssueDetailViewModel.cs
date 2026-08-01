@@ -93,7 +93,7 @@ namespace Fix_It.ViewModels
                 OnPropertyChanged(nameof(CanResolve));
                 OnPropertyChanged(nameof(IsResolved));
 
-                await ShowToastAsync("Issue marked as resolved.");
+                NotificationManager.ShowToast("Issue marked as resolved.");
             }
             finally
             {

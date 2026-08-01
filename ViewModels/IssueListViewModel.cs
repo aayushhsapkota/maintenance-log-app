@@ -11,11 +11,21 @@ namespace Fix_It.ViewModels
     // makes sense if everyone can actually see issues they didn't create in the first place.
     public class IssueListViewModel : BaseViewModel
     {
+        // Polling interval for the foreground push-notification approximation — see
+        // LoadReportsAsync(notifyOnChanges:) and StartPolling(). Short enough to demo without a
+        // long wait; there's no server pushing to us, so this is what stands in for it.
+        static readonly TimeSpan PollingInterval = TimeSpan.FromSeconds(15);
+
         readonly Page _page;
         readonly AuthSession _authSession;
 
         bool _isLoading;
         bool _isSignedIn;
+        IDispatcherTimer? _pollTimer;
+
+        // reportId -> status, as of the last LoadReportsAsync call — the baseline the next
+        // notifyOnChanges diff compares against.
+        Dictionary<string, string> _lastKnownStatusByReportId = new();
 
         public IssueListViewModel(Page page, AuthSession authSession)
         {
@@ -70,7 +80,14 @@ namespace Fix_It.ViewModels
         // Called from the page's OnAppearing — fires once at app start (skipped, since
         // CurrentUser is still null then) and again once PopModalAsync reveals this page
         // after a successful login, or after returning from ReportIssuePage/IssueDetailPage.
-        public async Task LoadReportsAsync()
+        //
+        // notifyOnChanges is only ever true from the polling timer (see StartPolling). There's
+        // no server pushing us real push notifications — this is the foreground approximation:
+        // compare what we just fetched against what we saw last time, and fire a local
+        // notification for anything that looks like "a new issue" or "one of my own reports got
+        // resolved". Ordinary navigation refreshes stay silent so returning to this page doesn't
+        // spam a notification for changes that happened while you were on a sub-page.
+        public async Task LoadReportsAsync(bool notifyOnChanges = false)
         {
             if (_authSession.CurrentUser is null)
                 return;
@@ -81,6 +98,11 @@ namespace Fix_It.ViewModels
             {
                 var reports = await FirebaseDataManager.GetAllIssueReportsAsync();
 
+                if (notifyOnChanges)
+                    NotifyAboutChanges(reports);
+
+                _lastKnownStatusByReportId = reports.ToDictionary(r => r.Id, r => r.Status);
+
                 Reports.Clear();
                 foreach (var report in reports)
                     Reports.Add(report);
@@ -89,6 +111,51 @@ namespace Fix_It.ViewModels
             {
                 IsLoading = false;
             }
+        }
+
+        void NotifyAboutChanges(List<IssueReport> reports)
+        {
+            // Nothing to compare against yet (first load this session) — skip rather than
+            // treating every existing report as "new".
+            if (_lastKnownStatusByReportId.Count == 0)
+                return;
+
+            var currentUserUid = _authSession.CurrentUser?.FirebaseUid;
+
+            foreach (var report in reports)
+            {
+                if (!_lastKnownStatusByReportId.TryGetValue(report.Id, out var previousStatus))
+                {
+                    // Every signed-in user's device independently notices this and notifies
+                    // itself — the closest approximation of "notify all staff" without a server.
+                    NotificationManager.SendNotification("New Issue Reported", report.Title, DateTime.Now);
+                }
+                else if (previousStatus == "Open" && report.IsResolved && report.CreatedByFirebaseUid == currentUserUid)
+                {
+                    // Only fires on the reporter's own device, since only their device has a
+                    // report with a matching CreatedByFirebaseUid to react to.
+                    NotificationManager.SendNotification("Issue Resolved", $"Your report \"{report.Title}\" has been resolved.", DateTime.Now);
+                }
+            }
+        }
+
+        // Started/stopped from the page's OnAppearing/OnDisappearing — polling only makes sense
+        // while this page is actually the visible one.
+        public void StartPolling()
+        {
+            if (_pollTimer is not null)
+                return;
+
+            _pollTimer = _page.Dispatcher.CreateTimer();
+            _pollTimer.Interval = PollingInterval;
+            _pollTimer.Tick += async (_, _) => await LoadReportsAsync(notifyOnChanges: true);
+            _pollTimer.Start();
+        }
+
+        public void StopPolling()
+        {
+            _pollTimer?.Stop();
+            _pollTimer = null;
         }
     }
 }
