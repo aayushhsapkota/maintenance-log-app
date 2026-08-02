@@ -4,10 +4,8 @@ using Fix_It.Services;
 
 namespace Fix_It.ViewModels
 {
-    // Backs NotificationsPage — a read-only history of fired notifications (currently just
-    // "New Issue Reported"), grouped by Today/Yesterday/Earlier. No read/unread tracking or
-    // "Mark all read" — there's no per-user state for that, and only one notification type
-    // exists right now.
+    // Backs NotificationsPage — read-only history grouped by Today/Yesterday/Earlier.
+    // No read/unread tracking or "Mark all read".
     public class NotificationsViewModel : BaseViewModel
     {
         bool _isLoading;

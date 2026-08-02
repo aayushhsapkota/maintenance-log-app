@@ -5,9 +5,9 @@ using Fix_It.Views;
 
 namespace Fix_It.ViewModels
 {
-    // Backs IssueDetailPage. Any signed-in user can resolve an issue — there's no role-based
-    // account system, so a confirmation popup stands in for a real permission check. Only the
-    // report's original creator can edit it, and once resolved nobody can edit it at all.
+    // Backs IssueDetailPage. Any signed-in user can resolve an issue (no role-based accounts,
+    // so a confirmation popup stands in for a real permission check); only the creator can
+    // edit, and never after it's resolved.
     public class IssueDetailViewModel : BaseViewModel
     {
         readonly Page _page;
@@ -50,9 +50,7 @@ namespace Fix_It.ViewModels
         public ICommand EditCommand { get; }
         public ICommand ResolveCommand { get; }
 
-        // Called from the page's OnAppearing so returning from a successful edit shows the
-        // saved changes — Report is a genuinely new object here, so the normal SetProperty
-        // change-detection in the setter above handles notifying the UI.
+        // Called from OnAppearing so returning from a successful edit shows the saved changes.
         public async Task RefreshAsync()
         {
             var refreshed = await FirebaseDataManager.GetIssueReportByIdAsync(Report.Id);
@@ -65,8 +63,7 @@ namespace Fix_It.ViewModels
             if (_isBusy)
                 return;
 
-            // No role-based accounts yet, so this confirmation is the stand-in for "are you
-            // actually maintenance staff" rather than an enforced permission check.
+            // Stand-in for a real maintenance-staff permission check.
             var confirmed = await _page.DisplayAlertAsync(
                 "Maintenance Staff Only",
                 "Only maintenance staff are allowed to resolve this issue. Are you sure you want to continue?",
@@ -85,9 +82,8 @@ namespace Fix_It.ViewModels
                     return;
                 }
 
-                // ResolveIssueReportAsync mutated Report in place (Status + Activity) rather
-                // than handing back a new instance, so SetProperty's reference-equality check
-                // wouldn't detect a change — raise the notifications directly instead.
+                // Report was mutated in place, so SetProperty's equality check won't catch
+                // the change — raise these directly.
                 OnPropertyChanged(nameof(Report));
                 OnPropertyChanged(nameof(CanEdit));
                 OnPropertyChanged(nameof(CanResolve));

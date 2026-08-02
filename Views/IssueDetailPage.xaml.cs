@@ -18,9 +18,8 @@ namespace Fix_It.Views
             BindingContext = _viewModel;
         }
 
-        // Always refresh from Firestore on appear — cheap single-document fetch, and it's what
-        // picks up a saved edit when this page is popped back to, or someone else resolving the
-        // same issue in the meantime.
+        // Refresh from Firestore on appear, so a saved edit or someone else resolving
+        // the issue shows up when this page is returned to.
         protected override async void OnAppearing()
         {
             base.OnAppearing();

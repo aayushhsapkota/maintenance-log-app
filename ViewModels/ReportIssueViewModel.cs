@@ -6,9 +6,9 @@ using Microsoft.Maui.Graphics.Platform;
 
 namespace Fix_It.ViewModels
 {
-    // Backs ReportIssuePage — used both for creating a new report and, when existingReport is
-    // supplied, editing one. Only reachable in edit mode via IssueDetailPage's Edit button,
-    // which already guarantees the current user is the report's creator and it isn't resolved.
+    // Backs ReportIssuePage — used for both creating a new report and, when existingReport
+    // is supplied, editing one. Edit mode is only reachable via IssueDetailPage's Edit
+    // button, which already guarantees the current user owns the report and it isn't resolved.
     public class ReportIssueViewModel : BaseViewModel
     {
         readonly Page _page;
@@ -199,12 +199,9 @@ namespace Fix_It.ViewModels
             }
         }
 
-        // Declaring the permission in the platform manifest (done back in Step 1) only gets us
-        // so far — this is the runtime "request via popup" half of the requirement, plus the
-        // two edge cases a flat RequestAsync call glosses over: iOS won't show its permission
-        // prompt a second time once denied (so we have to point the user at Settings instead),
-        // and Android can be asked to explain itself first via ShouldShowRationale before the
-        // user gets a second chance to grant it.
+        // Requests the camera permission at runtime, handling two edge cases a flat
+        // RequestAsync call misses: iOS won't re-prompt once denied, and Android can ask to
+        // explain itself first via ShouldShowRationale.
         async Task<PermissionStatus> GetCameraPermissionAsync()
         {
             var status = await Permissions.RequestAsync<Permissions.Camera>();
@@ -213,8 +210,7 @@ namespace Fix_It.ViewModels
 
             if (status == PermissionStatus.Denied && DeviceInfo.Platform == DevicePlatform.iOS)
             {
-                // On iOS, once a permission has been denied it may not be requested again
-                // from within the app — the user has to flip it on in Settings themselves.
+                // iOS won't show the prompt again once denied — the user must enable it in Settings.
                 await _page.DisplayAlertAsync("Warning",
                     "You must manually enable camera access for this app in settings.", "OK");
                 return status;
@@ -222,8 +218,7 @@ namespace Fix_It.ViewModels
 
             if (Permissions.ShouldShowRationale<Permissions.Camera>())
             {
-                // True if the user denied it before and it's being requested again —
-                // explain why we need it before asking a second time.
+                // Explain why we need it before asking a second time.
                 await _page.DisplayAlertAsync("Warning",
                     "This app requires camera access to attach a photo to your report.", "OK");
             }
@@ -254,10 +249,7 @@ namespace Fix_It.ViewModels
             }
             catch (Exception ex)
             {
-                // Commands wrapping "async () => await ..." run fire-and-forget — an exception
-                // that escapes here (e.g. no camera app on the device/emulator, or the user
-                // denies the OS-level prompt) would otherwise be unhandled and crash the app
-                // outright instead of just failing this one action.
+                // Commands run fire-and-forget, so catch here instead of crashing the app.
                 Console.WriteLine($"TakePhotoAsync failed: {ex.Message}");
                 ErrorMessage = "Couldn't open the camera. Please try again.";
             }
@@ -269,8 +261,8 @@ namespace Fix_It.ViewModels
 
             try
             {
-                // PickPhotoAsync is obsolete in favor of PickPhotosAsync (supports multi-select);
-                // we only want one image for this form, so just take the first result.
+                // PickPhotoAsync is obsolete in favor of PickPhotosAsync — take the first
+                // result since this form only wants one image.
                 var photos = await MediaPicker.Default.PickPhotosAsync();
                 var photo = photos.FirstOrDefault();
                 if (photo is null)
@@ -286,11 +278,8 @@ namespace Fix_It.ViewModels
             }
         }
 
-        // Reads whatever MediaPicker handed back, downscales it, and keeps only the smaller
-        // version in memory — no local file write. A full camera-resolution photo can be
-        // several MB as raw bytes plus far more once decoded to a bitmap for the preview, which
-        // was OOM-crashing the app on memory-constrained devices/emulators; capping the longest
-        // edge keeps both comfortably small while still being plenty clear for a report photo.
+        // Full camera-resolution photos were OOM-crashing the app on memory-constrained
+        // devices — capping the longest edge keeps things small without losing clarity.
         const int MaxPhotoDimension = 1600;
 
         async Task LoadPhotoAsync(FileResult photo)
@@ -298,8 +287,7 @@ namespace Fix_It.ViewModels
             using var sourceStream = await photo.OpenReadAsync();
             using var originalImage = PlatformImage.FromStream(sourceStream);
 
-            // TryDownscale returns null if the photo's already small enough, or if the resize
-            // itself failed — either way we fall back to encoding the untouched original.
+            // Null means either already small enough or the resize failed — fall back to the original.
             _photoBytes = TryDownscale(originalImage) ?? EncodeToJpegBytes(originalImage);
 
             // ImageSource.FromStream takes a factory rather than a stream directly because the
@@ -322,10 +310,8 @@ namespace Fix_It.ViewModels
             }
             catch (Exception ex)
             {
-                // PlatformImage's Android implementation has shown itself fragile around
-                // resize/dispose timing ("object already disposed" JNI errors) — if it throws,
-                // fall back to the original full-size photo rather than failing the whole
-                // attach-a-photo action over a downscale that didn't cooperate.
+                // PlatformImage's Android resize is fragile around dispose timing — fall back
+                // to the original photo rather than failing the whole attach-a-photo action.
                 Console.WriteLine($"Photo downscale failed, using original size: {ex.Message}");
                 return null;
             }

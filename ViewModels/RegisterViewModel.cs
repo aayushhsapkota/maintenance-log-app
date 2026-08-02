@@ -4,10 +4,9 @@ using Fix_It.Services;
 
 namespace Fix_It.ViewModels
 {
-    // Backs RegisterPage only. Reached from LoginPage via PushAsync; on success or via the
-    // "Already have an account?" link it pops back to LoginPage rather than swapping a mode flag.
-    // Doesn't sign the user in itself, so it has no need for AuthSession — just Firebase account
-    // creation, then back to Login to sign in with the new account.
+    // Backs RegisterPage only. Reached from LoginPage via PushAsync; pops back to LoginPage
+    // on success or via "Already have an account?". Doesn't sign the user in itself, so it
+    // has no need for AuthSession.
     public class RegisterViewModel : BaseViewModel
     {
         readonly INavigation _navigation;

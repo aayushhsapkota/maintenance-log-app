@@ -15,11 +15,8 @@ namespace Fix_It
         {
             var window = new Window(new AppShell());
 
-            // Present the login modal as early as possible in the window's lifecycle. Doing
-            // this from IssueListPage.OnAppearing instead (as before) meant it only ran after
-            // that page had already been laid out and shown, which was visible as a brief flash
-            // of the empty list before the modal covered it. Hooking Window.Created gets the
-            // push started right after the window exists, well before OnAppearing would fire.
+            // Hooked here instead of IssueListPage.OnAppearing to avoid a brief flash of the
+            // empty list before the modal covers it — Window.Created fires earlier.
             window.Created += async (_, _) => await PresentLoginIfNeededAsync(window);
 
             return window;

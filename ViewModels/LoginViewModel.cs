@@ -4,9 +4,8 @@ using Fix_It.Views;
 
 namespace Fix_It.ViewModels
 {
-    // Backs LoginPage only. Registration lives in RegisterViewModel/RegisterPage,
-    // reached and returned from via the screen stack (PushAsync/PopAsync) *inside*
-    // the modal layer that LoginPage was presented in (see IssueListPage.OnAppearing).
+    // Backs LoginPage only. Registration lives in RegisterViewModel/RegisterPage, reached
+    // and returned from via PushAsync/PopAsync inside the modal layer LoginPage opened in.
     public class LoginViewModel : BaseViewModel
     {
         // Preferences keys for the "Remember my details" checkbox.
@@ -109,10 +108,8 @@ namespace Fix_It.ViewModels
 
                 NotificationManager.ShowToast("Login successful!");
 
-                // Hand the signed-in user off to IssueListPage via the shared session, then
-                // close the ENTIRE modal layer (LoginPage + RegisterPage if it's on top of it)
-                // in one call — PopModalAsync pops the whole NavigationPage that was pushed
-                // modally, not just the current page within it.
+                // PopModalAsync closes the entire modal layer (LoginPage + RegisterPage if
+                // it's on top), not just the current page.
                 _authSession.CurrentUser = FirebaseAuthManager.CurrentUser;
                 await _navigation.PopModalAsync();
             }

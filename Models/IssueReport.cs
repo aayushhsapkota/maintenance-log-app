@@ -5,8 +5,7 @@ namespace Fix_It.Models
     // A maintenance issue report — persisted in Firestore, not SQLite.
     public class IssueReport
     {
-        // Firestore's own document id, captured from the "name" field on read. Empty for a
-        // report that hasn't been saved yet (e.g. while being built up in ReportIssueViewModel).
+        // Firestore's document id, captured from the "name" field on read. Empty until saved.
         public string Id { get; set; } = string.Empty;
 
         public string Title { get; set; } = string.Empty;
@@ -21,8 +20,7 @@ namespace Fix_It.Models
 
         public bool HasPhoto => !string.IsNullOrEmpty(PhotoUrl);
 
-        // "Open" or "Resolved" — no "In Progress" state, since there's no staff-assignment
-        // workflow to justify a third stage without role-based accounts.
+        // "Open" or "Resolved" — no "In Progress" state without a staff-assignment workflow.
         public string Status { get; set; } = "Open";
 
         public bool IsResolved => Status == "Resolved";
@@ -30,17 +28,15 @@ namespace Fix_It.Models
 
         public string CreatedByFirebaseUid { get; set; } = string.Empty;
 
-        // Denormalized at creation time (AuthSession.CurrentUser.Username) so "Submitted By"
-        // can be shown without needing an Admin SDK to look up another user's email by uid.
+        // Denormalized at creation time so "Submitted By" can show without an Admin SDK
+        // lookup of another user's email by uid.
         public string CreatedByEmail { get; set; } = string.Empty;
 
         public DateTime CreatedAtUtc { get; set; }
 
-        // ObservableCollection rather than List — BindableLayout only re-renders on
-        // INotifyCollectionChanged, so mutating a plain List in place (e.g. Add) would silently
-        // never update the UI even though the underlying data changed. Newest-first order is
-        // maintained by inserting new entries at index 0 (see FirebaseDataManager), not by
-        // sorting here.
+        // ObservableCollection, not List — BindableLayout only re-renders on
+        // INotifyCollectionChanged. Newest-first order comes from inserting at index 0
+        // (see FirebaseDataManager), not from sorting here.
         public ObservableCollection<IssueActivityEntry> Activity { get; set; } = new();
     }
 }

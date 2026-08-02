@@ -6,14 +6,11 @@ using Fix_It.Views;
 
 namespace Fix_It.ViewModels
 {
-    // Backs IssueListPage — the app's root page. Lists every submitted issue, not just the
-    // signed-in user's own — anyone can resolve any issue (no role-based accounts), which only
-    // makes sense if everyone can actually see issues they didn't create in the first place.
+    // Backs IssueListPage, the app's root page. Lists every issue, not just the current
+    // user's — anyone can resolve any issue since there's no role-based accounts yet.
     public class IssueListViewModel : BaseViewModel
     {
-        // Polling interval for the foreground push-notification approximation — see
-        // LoadReportsAsync and StartPolling. Short enough to demo without a long wait; there's
-        // no server pushing to us, so this is what stands in for it.
+        // Stands in for real push notifications — see LoadReportsAsync and StartPolling.
         static readonly TimeSpan PollingInterval = TimeSpan.FromSeconds(15);
 
         readonly Page _page;
@@ -23,16 +20,12 @@ namespace Fix_It.ViewModels
         bool _isSignedIn;
         IDispatcherTimer? _pollTimer;
 
-        // reportId -> status, as of the last LoadReportsAsync call — the baseline the next
-        // call's diff compares against.
+        // reportId -> status as of the last load, used as the baseline for the next diff.
         Dictionary<string, string> _lastKnownStatusByReportId = new();
 
-        // Tracks "have we ever completed a load" separately from the dictionary above — using
-        // _lastKnownStatusByReportId.Count == 0 for that check was a bug: if the very first load
-        // happens to find zero existing reports (e.g. a fresh Firestore collection, or your very
-        // first report ever), the baseline stays empty after that load too, so Count == 0 never
-        // stops being true and every future report looks like "still the first load" forever —
-        // silently skipping the notification and Firestore log write every single time.
+        // Tracks whether a load has ever completed. Using the dictionary's Count == 0 for this
+        // was a bug — a genuinely empty first load leaves it stuck looking like "first load"
+        // forever, silently skipping notifications every time.
         bool _hasLoadedBaseline;
 
         public IssueListViewModel(Page page, AuthSession authSession)
@@ -63,11 +56,8 @@ namespace Fix_It.ViewModels
 
         public ObservableCollection<IssueReport> Reports { get; } = new();
 
-        // Dashboard stat cards — Open/Resolved only, no "In Progress" card, since that status
-        // doesn't exist without a staff-assignment workflow we deliberately didn't build.
-        // Computed from Reports rather than tracked separately, so they can't drift out of sync
-        // with the list itself; re-notified manually in LoadReportsAsync since a filtered count
-        // isn't something data binding recalculates on its own.
+        // Computed from Reports so they can't drift out of sync; re-raised manually in
+        // LoadReportsAsync since data binding won't recalculate a filtered count on its own.
         public int OpenCount => Reports.Count(r => r.IsOpen);
         public int ResolvedCount => Reports.Count(r => r.IsResolved);
 
@@ -77,9 +67,7 @@ namespace Fix_It.ViewModels
 
         bool _hasUnseenNotifications;
 
-        // Drives the red dot badge on the bell icon — a lightweight "something's new" signal,
-        // not per-item read/unread tracking. Set when a notification fires, cleared as soon as
-        // the Notifications screen is opened.
+        // Drives the red dot on the bell icon. Set when a notification fires, cleared on open.
         public bool HasUnseenNotifications
         {
             get => _hasUnseenNotifications;
@@ -92,9 +80,8 @@ namespace Fix_It.ViewModels
             private set => SetProperty(ref _isLoading, value);
         }
 
-        // Drives a loading placeholder in the XAML so the brief window before the login modal
-        // covers this page (see App.xaml.cs) reads as an intentional loading beat instead of
-        // flashing the real "My Reports" content (header, empty-state text) before login appears.
+        // Shows a loading placeholder for the brief window before the login modal appears,
+        // instead of flashing the real content first.
         public bool IsSignedIn
         {
             get => _isSignedIn;
@@ -107,20 +94,12 @@ namespace Fix_It.ViewModels
 
         public bool IsCheckingAuth => !IsSignedIn;
 
-        // Exposed so the page's OnAppearing can decide whether to present the login modal
-        // (no one signed in yet) or refresh the list (already signed in).
+        // Lets OnAppearing decide whether to show the login modal or refresh the list.
         public User? CurrentUser => _authSession.CurrentUser;
 
-        // Called from the page's OnAppearing — fires once at app start (skipped, since
-        // CurrentUser is still null then), again once PopModalAsync reveals this page after a
-        // successful login, again on returning from ReportIssuePage/IssueDetailPage, and
-        // periodically from the polling timer (see StartPolling).
-        //
-        // Always diffs against the previous snapshot (NotifyAboutChanges) rather than only doing
-        // so from the timer — diffing is a no-op when nothing actually changed, so there's no
-        // real downside, and it's what makes "return to the list right after creating or
-        // resolving something yourself" actually fire a notification instead of that change
-        // getting silently folded into the baseline before the next poll ever sees it.
+        // Called from OnAppearing (after login, after returning from another page) and from
+        // the poll timer. Always diffs against the previous snapshot, not just on the timer
+        // tick, so returning right after creating a report still triggers a notification for it.
         public async Task LoadReportsAsync()
         {
             if (_authSession.CurrentUser is null)
@@ -132,9 +111,7 @@ namespace Fix_It.ViewModels
             {
                 var reports = await FirebaseDataManager.GetAllIssueReportsAsync();
 
-                // Figure out what's new against the CURRENT baseline before replacing it, so a
-                // rapid second call (e.g. the poll timer) can't race with the fire-and-forget
-                // notification step below.
+                // Diff against the current baseline before replacing it, to avoid racing a second call.
                 var newReports = _hasLoadedBaseline
                     ? reports.Where(r => !_lastKnownStatusByReportId.ContainsKey(r.Id)).ToList()
                     : new List<IssueReport>();
@@ -149,10 +126,7 @@ namespace Fix_It.ViewModels
                 OnPropertyChanged(nameof(OpenCount));
                 OnPropertyChanged(nameof(ResolvedCount));
 
-                // Deliberately not awaited: the permission prompt and system-notification calls
-                // must never block the visible refresh above (that's exactly what was happening
-                // before — the whole screen sat frozen until you answered the OS permission
-                // dialog).
+                // Not awaited — the permission prompt shouldn't block the visible refresh above.
                 if (newReports.Count > 0)
                     _ = NotifyAboutChangesAsync(newReports);
             }
@@ -172,12 +146,11 @@ namespace Fix_It.ViewModels
 
                 foreach (var report in newReports)
                 {
-                    // Every signed-in user's device independently notices this and notifies
-                    // itself — the closest approximation of "notify all staff" without a server.
+                    // Every signed-in user's device notices this independently and notifies itself.
                     NotificationManager.SendNotification("New Issue Reported", report.Title, DateTime.Now.AddSeconds(1));
 
-                    // Logged separately from the system notification so the Notifications tab
-                    // has history to show even after the OS tray notification is dismissed.
+                    // Logged separately so the Notifications tab keeps history after the OS
+                    // tray notification is dismissed.
                     await FirebaseDataManager.LogNotificationAsync("New Issue Reported", report.Title);
 
                     HasUnseenNotifications = true;
@@ -185,15 +158,12 @@ namespace Fix_It.ViewModels
             }
             catch (Exception ex)
             {
-                // Running fire-and-forget (see the call site above) — an unhandled exception
-                // here would otherwise be unobserved and could crash the app outright instead of
-                // just failing this one background notification pass.
+                // Fire-and-forget, so catch here instead of letting an unobserved exception crash the app.
                 Console.WriteLine($"NotifyAboutChangesAsync failed: {ex.Message}");
             }
         }
 
-        // Started/stopped from the page's OnAppearing/OnDisappearing — polling only makes sense
-        // while this page is actually the visible one.
+        // Started/stopped from OnAppearing/OnDisappearing — only poll while this page is visible.
         public void StartPolling()
         {
             if (_pollTimer is not null)

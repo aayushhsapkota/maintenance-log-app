@@ -1,7 +1,6 @@
 using CommunityToolkit.WinUI.Notifications;
 
-// Namespace has to match Services/NotificationManager.cs exactly — the folder-default
-// namespace here would be Fix_It.Platforms.Windows, which is NOT the same partial class.
+// Must match the namespace in Services/NotificationManager.cs, not the folder-default one.
 namespace Fix_It.Services
 {
     public static partial class NotificationManager

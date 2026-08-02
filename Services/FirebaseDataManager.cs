@@ -7,18 +7,14 @@ using Fix_It.Models;
 
 namespace Fix_It.Services
 {
-    // Talks to Firestore and Firebase Storage directly over their REST APIs, the same
-    // lightweight approach FirebaseAuthManager uses for Auth — no service account, no
-    // Google.Cloud.Firestore SDK, just the project's public config values plus the signed-in
-    // user's ID token for authenticated requests.
+    // Talks to Firestore and Firebase Storage over their REST APIs — same lightweight
+    // approach as FirebaseAuthManager, no service account or Firestore SDK needed.
     public static class FirebaseDataManager
     {
         const string ProjectId = "fix-it-765d8";
 
-        // IMPORTANT: verify this against Firebase console -> Storage -> the "gs://..." bucket
-        // name shown at the top. Projects created before Oct 2024 usually use
-        // "{ProjectId}.appspot.com" instead of "{ProjectId}.firebasestorage.app" — update this
-        // constant if uploads fail with a 404.
+        // Check against Firebase console -> Storage if uploads start failing with a 404 —
+        // older projects use "{ProjectId}.appspot.com" instead.
         const string StorageBucket = "fix-it-765d8.firebasestorage.app";
 
         const string FirestoreBaseUrl = $"https://firestore.googleapis.com/v1/projects/{ProjectId}/databases/(default)/documents";
@@ -28,10 +24,7 @@ namespace Fix_It.Services
 
         static readonly HttpClient _httpClient = new();
 
-        // Saves a brand-new issue report to Firestore, uploading photoBytes to Firebase
-        // Storage first (if provided) and stamping the resulting download URL onto
-        // report.PhotoUrl before writing the document. Seeds Status and the first Activity
-        // entry — mirrors how RegisterAccount mutates the User it's given.
+        // Uploads the photo first (if any) so its URL can be stamped onto the report before saving.
         public static async Task<bool> SaveIssueReportAsync(IssueReport report, byte[]? photoBytes)
         {
             try
@@ -71,10 +64,7 @@ namespace Fix_It.Services
             }
         }
 
-        // Lists every report regardless of who created it — "All Reports" shows everyone's
-        // issues so any signed-in user can find and resolve one, not just their own. Firestore's
-        // plain document-list endpoint doesn't need a structured query (or a composite index)
-        // since there's no filter; sorted client-side by CreatedAtUtc afterward.
+        // Lists every report, not just the current user's — anyone can view and resolve any issue.
         public static async Task<List<IssueReport>> GetAllIssueReportsAsync()
         {
             try
@@ -137,12 +127,8 @@ namespace Fix_It.Services
             }
         }
 
-        // Edits an existing report — title/location/description/priority, and the photo only if
-        // newPhotoBytes is provided (otherwise the existing PhotoUrl is left untouched). Appends
-        // an "updated the report" activity entry. Enforcing that only the report's creator can
-        // call this is done by the caller (IssueDetailViewModel hides the Edit button, and
-        // ReportIssueViewModel only reaches this path when editing); this method itself doesn't
-        // re-check ownership, so real enforcement ultimately needs Firestore Security Rules.
+        // Ownership isn't checked here — the caller (IssueDetailViewModel) only shows Edit
+        // to the report's creator, so only they ever reach this path.
         public static async Task<bool> UpdateIssueReportAsync(IssueReport report, byte[]? newPhotoBytes, string actorEmail)
         {
             try
@@ -160,9 +146,7 @@ namespace Fix_It.Services
                     report.PhotoUrl = photoUrl;
                 }
 
-                // Inserted at the front, not appended, so the newest entry shows first —
-                // both here and in the Firestore-stored array itself, since the whole
-                // collection gets written back as-is on every PATCH.
+                // Insert at the front so the newest entry shows first.
                 report.Activity.Insert(0, new IssueActivityEntry
                 {
                     ActorEmail = actorEmail,
@@ -180,8 +164,7 @@ namespace Fix_It.Services
             }
         }
 
-        // Marks a report resolved and appends an activity entry. No ownership check here by
-        // design — any signed-in user can resolve any issue.
+        // Any signed-in user can resolve any issue — no ownership check by design.
         public static async Task<bool> ResolveIssueReportAsync(IssueReport report, string actorEmail)
         {
             try
@@ -208,9 +191,8 @@ namespace Fix_It.Services
             }
         }
 
-        // Persists a fired notification so the Notifications tab has history to show — the
-        // system notification itself disappears once dismissed from the OS tray, this is what
-        // survives across devices and app restarts.
+        // Persists the notification so the Notifications tab keeps history after the
+        // OS tray notification is dismissed.
         public static async Task<bool> LogNotificationAsync(string title, string message)
         {
             try
@@ -242,9 +224,7 @@ namespace Fix_It.Services
             }
         }
 
-        // Most recent notifications across all users — there's no per-user read/unread state,
-        // so this is a shared history everyone sees the same way, matching how "New Issue
-        // Reported" itself is a broadcast-style notification.
+        // Shared history across all users — no per-user read/unread state.
         public static async Task<List<NotificationLogEntry>> GetRecentNotificationsAsync(int limit = 30)
         {
             try
@@ -296,10 +276,8 @@ namespace Fix_It.Services
 
         static async Task<bool> PatchAsync(string documentId, Dictionary<string, object> allFields, string[] fieldPaths, string idToken)
         {
-            // Firestore's partial-update semantics: only fields listed in updateMask are
-            // touched, but each one still needs a value in the body — a listed field missing
-            // from "fields" would be deleted rather than left alone, so we only ever send
-            // exactly the fields named in fieldPaths.
+            // updateMask needs a value for every listed field, or it gets deleted instead of
+            // left alone — so only send the fields named in fieldPaths.
             var fieldsToSend = fieldPaths.ToDictionary(path => path, path => allFields[path]);
             var maskQuery = string.Join("&", fieldPaths.Select(p => $"updateMask.fieldPaths={Uri.EscapeDataString(p)}"));
 
@@ -315,8 +293,7 @@ namespace Fix_It.Services
 
         static async Task<string?> UploadPhotoAsync(byte[] photoBytes, string firebaseUid, string idToken)
         {
-            // Firebase Storage's REST API treats the whole object path as one opaque segment —
-            // the "/" separators need to be percent-encoded, not left as literal slashes.
+            // The "/" in the path needs to be percent-encoded for Storage's REST API.
             var objectPath = $"issuePhotos/{firebaseUid}/{Guid.NewGuid()}.jpg";
             var encodedPath = Uri.EscapeDataString(objectPath);
 
@@ -338,8 +315,7 @@ namespace Fix_It.Services
             return $"https://firebasestorage.googleapis.com/v0/b/{StorageBucket}/o/{encodedPath}?alt=media&token={downloadToken}";
         }
 
-        // Builds the full Firestore "fields" map for an IssueReport. Used as-is for a create,
-        // and filtered down to just the fields named in updateMask for a partial update.
+        // Full field set for a create; PatchAsync filters this down for partial updates.
         static Dictionary<string, object> BuildFields(IssueReport report) => new()
         {
             ["title"] = StringValue(report.Title),
@@ -361,8 +337,7 @@ namespace Fix_It.Services
 
             return new IssueReport
             {
-                // "name" is the full resource path (.../documents/issueReports/{id}) — the id
-                // we actually want is just the last path segment.
+                // "name" is the full resource path — the id is just the last segment.
                 Id = document.GetProperty("name").GetString()!.Split('/').Last(),
                 Title = GetString(fields, "title"),
                 Location = GetString(fields, "location"),
@@ -380,8 +355,7 @@ namespace Fix_It.Services
             };
         }
 
-        // Firestore's REST representation of an array of maps — easy to get wrong, so this and
-        // ParseActivity below are the one place that shape is built/read.
+        // Firestore's array-of-maps shape — easy to get wrong, kept in one place with ParseActivity.
         static object ActivityArrayValue(IEnumerable<IssueActivityEntry> activity) => new
         {
             arrayValue = new
@@ -424,9 +398,8 @@ namespace Fix_It.Services
                 });
             }
 
-            // Sorted explicitly (newest first) rather than trusting stored order — new entries
-            // are inserted at the front going forward, but this keeps any already-written data
-            // from before that change displaying correctly too.
+            // Sort explicitly rather than trust stored order, so old data from before entries
+            // were inserted newest-first still displays correctly.
             return new ObservableCollection<IssueActivityEntry>(entries.OrderByDescending(e => e.TimestampUtc));
         }
 
