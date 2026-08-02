@@ -7,7 +7,7 @@
     Title="Fix It">
 
     <ShellContent
-        Title="My Reports"
+        Title="Dashboard"
         ContentTemplate="{DataTemplate views:IssueListPage}"
         Route="IssueListPage" />
 

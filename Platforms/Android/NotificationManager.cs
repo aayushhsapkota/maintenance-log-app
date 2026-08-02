@@ -1,6 +1,5 @@
 using Android.App;
 using Android.Content;
-using Android.Runtime;
 using AndroidX.Core.App;
 using Fix_It;
 
@@ -26,54 +25,30 @@ namespace Fix_It.Services
             notificationManager!.CreateNotificationChannel(channel);
         }
 
+        // Fires the notification directly rather than scheduling it via AlarmManager (which is
+        // what this used to do, via an AlarmReceiver BroadcastReceiver). Every call here is
+        // really "right now" — we're reacting to something just detected via polling, not
+        // setting a genuine future reminder — and AlarmManager's inexact-alarm battery/Doze-mode
+        // heuristics (its whole point is tolerating scheduling slop in exchange for battery
+        // savings) were causing inconsistent, sometimes-missing delivery for exactly that
+        // reason. scheduledTime goes unused now, but stays in the shared signature (see
+        // Services/NotificationManager.cs) in case a real "remind me later" feature reuses it.
         static partial void DoSendNotification(string title, string message, DateTime scheduledTime)
         {
-            var alarmManager = Context.GetSystemService(Android.Content.Context.AlarmService).JavaCast<AlarmManager>();
-
-            int id = new Random().Next(int.MaxValue);
-            var alarmIntent = new Intent(Context, typeof(AlarmReceiver));
-
-            // Extra tags so AlarmReceiver can read them back when the alarm fires.
-            alarmIntent.PutExtra("id", id);
-            alarmIntent.PutExtra("title", title);
-            alarmIntent.PutExtra("message", message);
-
-            var dateOffsetValue = new DateTimeOffset(scheduledTime);
-            long millisecondsToBegin = dateOffsetValue.ToUnixTimeMilliseconds();
-
-            // Bound as PendingIntent? since the Java API can technically return null (e.g. with
-            // the NoCreate flag), which we're not using here, so this is never actually null.
-            var pending = PendingIntent.GetBroadcast(Context, id, alarmIntent, PendingIntentFlags.Immutable)!;
-
-            // Schedule the alarm to trigger AlarmReceiver at the designated time.
-            alarmManager!.Set(AlarmType.RtcWakeup, millisecondsToBegin, pending);
-        }
-    }
-
-    [BroadcastReceiver]
-    public class AlarmReceiver : BroadcastReceiver
-    {
-        public override void OnReceive(Context? context, Intent? intent)
-        {
-            if (context is null || intent is null)
-                return;
-
-            var title = intent.GetStringExtra("title") ?? string.Empty;
-            var message = intent.GetStringExtra("message") ?? string.Empty;
-            var id = intent.GetIntExtra("id", 0);
-
             // Launch the app when the notification is tapped.
-            var resultIntent = new Intent(context, typeof(MainActivity));
+            var resultIntent = new Intent(Context, typeof(MainActivity));
             resultIntent.SetFlags(ActivityFlags.NewTask | ActivityFlags.ClearTask);
 
             const int pendingIntentId = 0;
-            var pendingIntent = PendingIntent.GetActivity(context, pendingIntentId, resultIntent, PendingIntentFlags.Immutable);
+            // Bound as PendingIntent? since the Java API can technically return null (e.g. with
+            // the NoCreate flag), which we're not using here, so this is never actually null.
+            var pendingIntent = PendingIntent.GetActivity(Context, pendingIntentId, resultIntent, PendingIntentFlags.Immutable)!;
 
             // The Android binding for NotificationCompat.Builder's fluent Set* methods marks
             // their return type nullable even though the underlying Java API always returns
             // `this` — the warnings below are binding-generator noise, not a real null risk.
 #pragma warning disable CS8602
-            var builder = new NotificationCompat.Builder(context, NotificationManager.ChannelId)
+            var builder = new NotificationCompat.Builder(Context, ChannelId)
                 .SetContentTitle(title)
                 .SetContentText(message)
                 .SetDefaults((int)(NotificationDefaults.Sound | NotificationDefaults.Vibrate))
@@ -85,9 +60,8 @@ namespace Fix_It.Services
             var notification = builder.Build();
 #pragma warning restore CS8602
 
-            var notificationManager = context.GetSystemService(Android.Content.Context.NotificationService) as Android.App.NotificationManager;
-
-            notificationManager!.Notify(id, notification);
+            var notificationManager = Context.GetSystemService(Android.Content.Context.NotificationService) as Android.App.NotificationManager;
+            notificationManager!.Notify(new Random().Next(int.MaxValue), notification);
         }
     }
 }

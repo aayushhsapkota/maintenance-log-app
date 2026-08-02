@@ -63,6 +63,14 @@ namespace Fix_It.ViewModels
 
         public ObservableCollection<IssueReport> Reports { get; } = new();
 
+        // Dashboard stat cards — Open/Resolved only, no "In Progress" card, since that status
+        // doesn't exist without a staff-assignment workflow we deliberately didn't build.
+        // Computed from Reports rather than tracked separately, so they can't drift out of sync
+        // with the list itself; re-notified manually in LoadReportsAsync since a filtered count
+        // isn't something data binding recalculates on its own.
+        public int OpenCount => Reports.Count(r => r.IsOpen);
+        public int ResolvedCount => Reports.Count(r => r.IsResolved);
+
         public ICommand GoToReportCommand { get; }
         public ICommand GoToDetailCommand { get; }
         public ICommand GoToNotificationsCommand { get; }
@@ -124,13 +132,29 @@ namespace Fix_It.ViewModels
             {
                 var reports = await FirebaseDataManager.GetAllIssueReportsAsync();
 
-                await NotifyAboutChangesAsync(reports);
+                // Figure out what's new against the CURRENT baseline before replacing it, so a
+                // rapid second call (e.g. the poll timer) can't race with the fire-and-forget
+                // notification step below.
+                var newReports = _hasLoadedBaseline
+                    ? reports.Where(r => !_lastKnownStatusByReportId.ContainsKey(r.Id)).ToList()
+                    : new List<IssueReport>();
+
                 _lastKnownStatusByReportId = reports.ToDictionary(r => r.Id, r => r.Status);
                 _hasLoadedBaseline = true;
 
                 Reports.Clear();
                 foreach (var report in reports)
                     Reports.Add(report);
+
+                OnPropertyChanged(nameof(OpenCount));
+                OnPropertyChanged(nameof(ResolvedCount));
+
+                // Deliberately not awaited: the permission prompt and system-notification calls
+                // must never block the visible refresh above (that's exactly what was happening
+                // before — the whole screen sat frozen until you answered the OS permission
+                // dialog).
+                if (newReports.Count > 0)
+                    _ = NotifyAboutChangesAsync(newReports);
             }
             finally
             {
@@ -138,37 +162,33 @@ namespace Fix_It.ViewModels
             }
         }
 
-        async Task NotifyAboutChangesAsync(List<IssueReport> reports)
+        async Task NotifyAboutChangesAsync(List<IssueReport> newReports)
         {
-            // Nothing to compare against yet (first load this session) — skip rather than
-            // treating every existing report as "new".
-            if (!_hasLoadedBaseline)
-                return;
-
-            var newReports = reports.Where(r => !_lastKnownStatusByReportId.ContainsKey(r.Id)).ToList();
-            if (newReports.Count == 0)
-                return;
-
-            // Android 13+ requires this runtime permission before any notification can actually
-            // show — silently a no-op on other platforms. Requested lazily, right before the
-            // first notification this pass actually needs to fire, rather than unconditionally
-            // on every load.
-            await new PostNotificationsPermission().RequestAsync();
-
-            foreach (var report in newReports)
+            try
             {
-                // Every signed-in user's device independently notices this and notifies
-                // itself — the closest approximation of "notify all staff" without a server.
-                // Scheduled a second into the future, not for "now" exactly — some platforms
-                // (Windows in particular) silently drop a scheduled notification whose delivery
-                // time has already passed by the time the OS actually processes the request.
-                NotificationManager.SendNotification("New Issue Reported", report.Title, DateTime.Now.AddSeconds(1));
+                // Android 13+ requires this runtime permission before any notification can
+                // actually show — silently a no-op on other platforms.
+                await new PostNotificationsPermission().RequestAsync();
 
-                // Logged separately from the system notification so the Notifications tab
-                // has history to show even after the OS tray notification is dismissed.
-                await FirebaseDataManager.LogNotificationAsync("New Issue Reported", report.Title);
+                foreach (var report in newReports)
+                {
+                    // Every signed-in user's device independently notices this and notifies
+                    // itself — the closest approximation of "notify all staff" without a server.
+                    NotificationManager.SendNotification("New Issue Reported", report.Title, DateTime.Now.AddSeconds(1));
 
-                HasUnseenNotifications = true;
+                    // Logged separately from the system notification so the Notifications tab
+                    // has history to show even after the OS tray notification is dismissed.
+                    await FirebaseDataManager.LogNotificationAsync("New Issue Reported", report.Title);
+
+                    HasUnseenNotifications = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Running fire-and-forget (see the call site above) — an unhandled exception
+                // here would otherwise be unobserved and could crash the app outright instead of
+                // just failing this one background notification pass.
+                Console.WriteLine($"NotifyAboutChangesAsync failed: {ex.Message}");
             }
         }
 

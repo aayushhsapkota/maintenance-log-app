@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:models="clr-namespace:Fix_It.Models"
              x:Class="Fix_It.Views.IssueListPage"
-             Title="All Reports"
+             Title="Dashboard"
              BackgroundColor="{StaticResource PageBackground}">
 
     <Grid>
@@ -13,50 +13,95 @@
              this page — the ActivityIndicator below is what's visible instead. -->
         <Grid Padding="20" RowDefinitions="Auto,*" RowSpacing="16" IsVisible="{Binding IsSignedIn}">
 
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-            <VerticalStackLayout Grid.Column="0" Spacing="2">
-                <Label Text="All Reports"
-                       FontFamily="OpenSansSemibold"
-                       FontSize="26"
-                       HorizontalOptions="Start" />
-                <Label Text="Every issue that's been submitted"
-                       TextColor="{StaticResource Gray500}" />
-            </VerticalStackLayout>
+        <!-- Header + stat cards + "Recent Reports" section label, all Auto-height, sitting
+             above the list itself (the "*" row below). -->
+        <VerticalStackLayout Grid.Row="0" Spacing="16">
 
-            <!-- Bell icon — entry point to NotificationsPage. Style="{StaticResource
-                 SecondaryButton}" is the Named style; the fixed square size overriding that
-                 style's HeightRequest is set directly on this element (Element-level). The red
-                 dot is a lightweight "something's new" signal (HasUnseenNotifications), not
-                 per-item read/unread tracking — just overlaid in the same grid cell as the
-                 button so it sits on its top-right corner. -->
-            <Grid Grid.Column="1" VerticalOptions="Center">
-                <Button Text="&#128276;"
-                        Style="{StaticResource SecondaryButton}"
-                        Command="{Binding GoToNotificationsCommand}"
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <VerticalStackLayout Grid.Column="0" Spacing="2">
+                    <Label Text="Dashboard"
+                           FontFamily="OpenSansSemibold"
+                           FontSize="26"
+                           HorizontalOptions="Start" />
+                    <Label Text="Maintenance overview"
+                           TextColor="{StaticResource Gray500}" />
+                </VerticalStackLayout>
+
+                <!-- Bell icon — entry point to NotificationsPage. Style="{StaticResource
+                     SecondaryButton}" is the Named style; the fixed square size overriding that
+                     style's HeightRequest is set directly on this element (Element-level). The
+                     red dot is a lightweight "something's new" signal (HasUnseenNotifications),
+                     not per-item read/unread tracking — just overlaid in the same grid cell as
+                     the button so it sits on its top-right corner. -->
+                <Grid Grid.Column="1" VerticalOptions="Center">
+                    <Button Text="&#128276;"
+                            Style="{StaticResource SecondaryButton}"
+                            Command="{Binding GoToNotificationsCommand}"
+                            HeightRequest="44"
+                            WidthRequest="44"
+                            FontSize="18"
+                            Padding="0" />
+
+                    <Ellipse Fill="{StaticResource ErrorRed}"
+                             WidthRequest="12"
+                             HeightRequest="12"
+                             HorizontalOptions="End"
+                             VerticalOptions="Start"
+                             Margin="0,2,2,0"
+                             IsVisible="{Binding HasUnseenNotifications}"
+                             InputTransparent="True" />
+                </Grid>
+
+                <Button Grid.Column="2"
+                        Text="+ Report"
+                        Style="{StaticResource PrimaryButton}"
+                        Command="{Binding GoToReportCommand}"
                         HeightRequest="44"
-                        WidthRequest="44"
-                        FontSize="18"
-                        Padding="0" />
-
-                <Ellipse Fill="{StaticResource ErrorRed}"
-                         WidthRequest="12"
-                         HeightRequest="12"
-                         HorizontalOptions="End"
-                         VerticalOptions="Start"
-                         Margin="0,2,2,0"
-                         IsVisible="{Binding HasUnseenNotifications}"
-                         InputTransparent="True" />
+                        WidthRequest="110"
+                        FontSize="14"
+                        VerticalOptions="Center" />
             </Grid>
 
-            <Button Grid.Column="2"
-                    Text="+ Report"
-                    Style="{StaticResource PrimaryButton}"
-                    Command="{Binding GoToReportCommand}"
-                    HeightRequest="44"
-                    WidthRequest="110"
-                    FontSize="14"
-                    VerticalOptions="Center" />
-        </Grid>
+            <!-- Stat cards — Open/Resolved only, no "In Progress" card, since that status
+                 doesn't exist without a staff-assignment workflow. -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <Border Grid.Column="0"
+                        BackgroundColor="{StaticResource CardBackground}"
+                        Stroke="{StaticResource BorderGray}"
+                        StrokeShape="RoundRectangle 12"
+                        StrokeThickness="1"
+                        Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Open" TextColor="{StaticResource Gray500}" FontSize="13" />
+                        <Label Text="{Binding OpenCount}" FontFamily="OpenSansSemibold" FontSize="28" />
+                        <BoxView HeightRequest="4" Color="{StaticResource ErrorRed}" HorizontalOptions="Fill" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border Grid.Column="1"
+                        BackgroundColor="{StaticResource CardBackground}"
+                        Stroke="{StaticResource BorderGray}"
+                        StrokeShape="RoundRectangle 12"
+                        StrokeThickness="1"
+                        Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Resolved" TextColor="{StaticResource Gray500}" FontSize="13" />
+                        <Label Text="{Binding ResolvedCount}" FontFamily="OpenSansSemibold" FontSize="28" />
+                        <BoxView HeightRequest="4" Color="{StaticResource SuccessGreen}" HorizontalOptions="Fill" />
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Grid.Column="0" Text="Recent Reports" FontFamily="OpenSansSemibold" FontSize="18" />
+                <Label Grid.Column="1"
+                       Text="{Binding Reports.Count, StringFormat='{0} issues'}"
+                       TextColor="{StaticResource Gray500}"
+                       FontSize="13"
+                       VerticalOptions="Center" />
+            </Grid>
+
+        </VerticalStackLayout>
 
         <CollectionView Grid.Row="1" ItemsSource="{Binding Reports}">
             <CollectionView.EmptyView>
